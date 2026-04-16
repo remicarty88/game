@@ -825,9 +825,14 @@ function renderDiscordFeed(rooms) {
 }
 
 export const joinDiscordRoom = async (roomId) => {
+    console.log('🔥 Joining Discord room:', roomId);
+    console.log('🔥 Current user:', currentUser);
+    console.log('🔥 Firebase DB initialized:', !!db);
+    
     const roomRef = ref(db, `rooms/${roomId}`);
     const snap = await get(roomRef);
     const room = snap.val();
+    console.log('🔥 Room data:', room);
 
     if (!room) {
         alert('Пространство не найдено или было удалено');
@@ -843,11 +848,17 @@ export const joinDiscordRoom = async (roomId) => {
     }
 
     currentDiscordRoomId = roomId;
+    console.log('🔥 Set currentDiscordRoomId to:', currentDiscordRoomId);
 
     // Прячем ленту комнат и показываем активную комнату
     roomWelcomeViewEl.classList.add('hidden');
     roomActiveViewEl.classList.remove('hidden');
-    document.getElementById('active-room-name').innerText = room.name;
+    
+    // Обновляем название комнаты если элемент существует
+    const roomNameEl = document.getElementById('active-room-name');
+    if (roomNameEl) {
+        roomNameEl.innerText = room.name;
+    }
 
     // Скрываем таб-бар в активной комнате
     const tabBar = document.querySelector('.tab-bar');
@@ -864,26 +875,33 @@ export const joinDiscordRoom = async (roomId) => {
     });
 
     onDisconnect(playerRef).remove();
+    console.log('🔥 Player added to room');
 
+    console.log('🔥 Starting real-time listeners...');
     listenToChat(roomId);
     listenToVoice(roomId);
+    console.log('🔥 Room joined successfully');
 };
 
 function listenToChat(roomId) {
-    console.log('Starting to listen to chat for room:', roomId);
+    console.log('🔥 Starting to listen to chat for room:', roomId);
     const chatRef = ref(db, `rooms/${roomId}/messages`);
     
     onValue(chatRef, (snapshot) => {
+        console.log('🔥 Chat snapshot received:', snapshot.exists());
         const msgs = [];
         snapshot.forEach(child => {
             const msg = child.val();
             if (msg) {
                 msgs.push({ id: child.key, ...msg });
+                console.log('🔥 Message found:', { id: child.key, ...msg });
             }
         });
         
-        console.log('Received messages:', msgs);
+        console.log('🔥 Total messages to render:', msgs.length);
         renderMessages(msgs);
+    }, (error) => {
+        console.error('🔥 Error listening to chat:', error);
     });
 }
 
@@ -923,25 +941,25 @@ function renderMessages(msgs) {
 
 // Make function global for onclick handlers
 window.sendChatMessage = async () => {
-    console.log('sendChatMessage called');
+    console.log('🔥 sendChatMessage called');
     const input = document.getElementById('chat-input');
-    console.log('Input element:', input);
+    console.log('🔥 Input element:', input);
     
     if (!input) {
-        console.error('Chat input not found');
+        console.error('🔥 Chat input not found');
         return;
     }
     
     const text = input.value.trim();
-    console.log('Text:', text, 'Room ID:', currentDiscordRoomId, 'User:', currentUser);
+    console.log('🔥 Text:', text, 'Room ID:', currentDiscordRoomId, 'User:', currentUser);
     
     if (!text) {
-        console.log('No text, returning');
+        console.log('🔥 No text, returning');
         return;
     }
     
     if (!currentDiscordRoomId) {
-        console.log('No room ID, showing test message');
+        console.log('🔥 No room ID, showing test message locally');
         // Show test message locally if no room
         const messagesContainer = document.getElementById('chat-messages');
         if (messagesContainer) {
@@ -955,39 +973,76 @@ window.sendChatMessage = async () => {
             `;
             messagesContainer.appendChild(testMsg);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            input.value = '';
         }
+        input.value = '';
         return;
     }
-
+    
     try {
+        console.log('🔥 Sending message to Firebase...');
         const chatRef = ref(db, `rooms/${currentDiscordRoomId}/messages`);
-        console.log('Chat ref:', chatRef);
         
-        await push(chatRef, {
+        const messageData = {
             userId: currentUser.id,
             userName: currentUser.name,
             text: text,
             timestamp: Date.now()
-        });
+        };
         
-        console.log('Message sent successfully');
+        console.log('🔥 Message data:', messageData);
+        
+        await push(chatRef, messageData);
+        
+        console.log('🔥 Message sent successfully to Firebase');
         input.value = '';
+        
+        // Show local message immediately for better UX
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer) {
+            const localMsg = document.createElement('div');
+            localMsg.className = 'new-message self';
+            localMsg.innerHTML = `
+                <div class="new-message-bubble">
+                    ${text}
+                    <span class="new-message-time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `;
+            messagesContainer.appendChild(localMsg);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('🔥 Error sending to Firebase:', error);
+        alert('Ошибка отправки сообщения. Проверьте подключение к интернету.');
     }
+};
+
+window.toggleMute = () => {
+    console.log('Toggle mute clicked');
+    // Простая функция заглушка для отключения звука
+    alert('Функция отключения звука будет доступна позже');
 };
 
 // Old event listener removed - using inline function in HTML
 
 function listenToVoice(roomId) {
+    console.log('🔥 Starting to listen to voice participants for room:', roomId);
     const playersRef = ref(db, `rooms/${roomId}/players`);
+    
     onValue(playersRef, (snapshot) => {
+        console.log('🔥 Players snapshot received:', snapshot.exists());
         const members = [];
         snapshot.forEach(child => {
-            members.push({ id: child.key, ...child.val() });
+            const player = child.val();
+            if (player) {
+                members.push({ id: child.key, ...player });
+                console.log('🔥 Player found:', { id: child.key, ...player });
+            }
         });
+        console.log('🔥 Total members to render:', members.length);
         renderVoiceMembers(members);
+    }, (error) => {
+        console.error('🔥 Error listening to players:', error);
     });
 }
 
@@ -1760,6 +1815,7 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
+
 
 
 
