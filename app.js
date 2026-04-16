@@ -908,20 +908,25 @@ function listenToChat(roomId) {
 function renderMessages(msgs) {
     const messagesContainer = document.getElementById('chat-messages');
     if (!messagesContainer) {
-        console.error('Messages container not found');
+        console.error('🔥 Messages container not found');
         return;
     }
     
-    console.log('Rendering messages:', msgs);
+    console.log('🔥 Rendering messages:', msgs.length, 'messages');
     
     if (msgs.length === 0) {
         messagesContainer.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.3); padding: 20px;">Нет сообщений</div>';
         return;
     }
     
-    messagesContainer.innerHTML = msgs.map(m => {
+    // Сортируем сообщения по времени
+    const sortedMsgs = msgs.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    
+    messagesContainer.innerHTML = sortedMsgs.map(m => {
         const isSelf = m.userId === currentUser.id;
         const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        console.log('🔥 Rendering message:', { text: m.text, userId: m.userId, isSelf, userName: m.userName });
         
         return `
             <div class="new-message ${isSelf ? 'self' : 'other'}">
@@ -935,11 +940,17 @@ function renderMessages(msgs) {
     }).join('');
     
     // Scroll to bottom
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    console.log('Messages rendered and scrolled to bottom');
+    setTimeout(() => {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 100);
+    
+    console.log('🔥 Messages rendered and scrolled to bottom');
 }
 
-// Make function global for onclick handlers
+// Export functions for global access
+export { leaveRoom, toggleVoice, toggleMute };
+
+// Make functions global for onclick handlers
 window.sendChatMessage = async () => {
     console.log('🔥 sendChatMessage called');
     const input = document.getElementById('chat-input');
@@ -984,32 +995,19 @@ window.sendChatMessage = async () => {
         
         const messageData = {
             userId: currentUser.id,
-            userName: currentUser.name,
+            userName: currentUser.name || 'Anonymous',
             text: text,
             timestamp: Date.now()
         };
         
         console.log('🔥 Message data:', messageData);
+        console.log('🔥 Firebase path:', `rooms/${currentDiscordRoomId}/messages`);
         
-        await push(chatRef, messageData);
+        const result = await push(chatRef, messageData);
+        console.log('🔥 Message pushed to Firebase with key:', result.key);
         
-        console.log('🔥 Message sent successfully to Firebase');
         input.value = '';
-        
-        // Show local message immediately for better UX
-        const messagesContainer = document.getElementById('chat-messages');
-        if (messagesContainer) {
-            const localMsg = document.createElement('div');
-            localMsg.className = 'new-message self';
-            localMsg.innerHTML = `
-                <div class="new-message-bubble">
-                    ${text}
-                    <span class="new-message-time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-            `;
-            messagesContainer.appendChild(localMsg);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
+        console.log('🔥 Message sent successfully to Firebase');
         
     } catch (error) {
         console.error('🔥 Error sending to Firebase:', error);
@@ -1018,10 +1016,101 @@ window.sendChatMessage = async () => {
 };
 
 window.toggleMute = () => {
-    console.log('Toggle mute clicked');
-    // Простая функция заглушка для отключения звука
-    alert('Функция отключения звука будет доступна позже');
+    console.log('🔥 Toggle mute clicked');
+    
+    // Mute/unmute all remote audio streams
+    Object.values(audioElements).forEach(audio => {
+        if (audio.muted) {
+            audio.muted = false;
+            console.log('🔥 Audio unmuted');
+        } else {
+            audio.muted = true;
+            console.log('🔥 Audio muted');
+        }
+    });
+    
+    // Update button state
+    const muteBtn = document.querySelector('[onclick="toggleMute()"]');
+    if (muteBtn) {
+        muteBtn.classList.toggle('muted');
+    }
 };
+
+window.setVolume = (volume) => {
+    console.log('🔥 Setting volume to:', volume);
+    localStorage.setItem('voice_volume', volume);
+    
+    Object.values(audioElements).forEach(audio => {
+        audio.volume = volume;
+    });
+};
+
+window.leaveRoom = () => {
+    console.log('🔥 Leaving room:', currentDiscordRoomId);
+    
+    if (!currentDiscordRoomId) {
+        console.log('🔥 No room to leave');
+        return;
+    }
+    
+    // Очищаем голосовой чат
+    cleanupVoice();
+    
+    // Удаляем пользователя из комнаты
+    const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
+    remove(playerRef).then(() => {
+        console.log('🔥 Successfully left room');
+    }).catch((error) => {
+        console.error('🔥 Error leaving room:', error);
+    });
+    
+    // Сбрасываем ID комнаты
+    currentDiscordRoomId = null;
+    
+    // Показываем список комнат и скрываем активную комнату
+    if (roomWelcomeViewEl) roomWelcomeViewEl.classList.remove('hidden');
+    if (roomActiveViewEl) roomActiveViewEl.classList.add('hidden');
+    
+    // Показываем таб-бар обратно
+    const tabBar = document.querySelector('.tab-bar');
+    if (tabBar) tabBar.style.display = '';
+    
+    console.log('🔥 Room left successfully');
+};
+
+// Simple test function to check Firebase connection
+window.testFirebase = () => {
+    console.log('🔥 Testing Firebase connection...');
+    console.log('🔥 DB object:', !!db);
+    console.log('🔥 Current user:', currentUser);
+    console.log('🔥 Current room ID:', currentDiscordRoomId);
+    
+    if (currentDiscordRoomId) {
+        const testRef = ref(db, `rooms/${currentDiscordRoomId}/test`);
+        set(testRef, {
+            message: 'Test message',
+            timestamp: Date.now(),
+            userId: currentUser.id
+        }).then(() => {
+            console.log('🔥 Firebase write test successful');
+            remove(testRef);
+        }).catch(error => {
+            console.error('🔥 Firebase write test failed:', error);
+        });
+    }
+};
+
+// Ensure leaveRoom is available globally
+window.leaveRoom = window.leaveRoom || (() => {
+    console.log('🔥 Fallback leaveRoom called');
+    if (currentDiscordRoomId) {
+        currentDiscordRoomId = null;
+        if (roomWelcomeViewEl) roomWelcomeViewEl.classList.remove('hidden');
+        if (roomActiveViewEl) roomActiveViewEl.classList.add('hidden');
+        const tabBar = document.querySelector('.tab-bar');
+        if (tabBar) tabBar.style.display = '';
+    }
+});
 
 // Old event listener removed - using inline function in HTML
 
@@ -1089,89 +1178,161 @@ function renderVoiceMembers(members) {
 let myPeer;
 let myStream;
 const peers = {};
-// Проверка наличия io (Socket.io) перед инициализацией
-const socket = typeof io !== 'undefined' ? io() : null;
+const audioElements = {};
+
+// Initialize PeerJS for P2P connections
+function initializePeer() {
+    if (typeof Peer === 'undefined') {
+        console.error('🔥 PeerJS not loaded');
+        return null;
+    }
+    
+    try {
+        myPeer = new Peer(currentUser.id, {
+            debug: 2
+        });
+        
+        myPeer.on('open', (id) => {
+            console.log('🔥 My peer ID is:', id);
+        });
+        
+        myPeer.on('call', (call) => {
+            console.log('🔥 Receiving call from:', call.peer);
+            call.answer(myStream);
+            
+            call.on('stream', (userAudioStream) => {
+                console.log('🔥 Received stream from:', call.peer);
+                addAudioStream(call.peer, userAudioStream);
+            });
+            
+            call.on('close', () => {
+                console.log('🔥 Call closed with:', call.peer);
+                removeAudioStream(call.peer);
+            });
+            
+            peers[call.peer] = call;
+        });
+        
+        myPeer.on('error', (error) => {
+            console.error('🔥 Peer error:', error);
+        });
+        
+        return myPeer;
+    } catch (error) {
+        console.error('🔥 Error initializing peer:', error);
+        return null;
+    }
+}
 
 function initVoiceCommunication(roomId) {
-    if (!socket) {
-        console.warn('Socket.io not loaded. Voice chat disabled.');
+    console.log('🔥 Initializing voice communication for room:', roomId);
+    
+    // Initialize PeerJS
+    myPeer = initializePeer();
+    if (!myPeer) {
+        console.log('🔥 Voice chat disabled - PeerJS not available');
         return;
     }
     
-    // Пересоздаем Peer если он был закрыт
-    if (!myPeer || myPeer.destroyed) {
-        myPeer = new Peer(currentUser.id, {
-            host: location.hostname,
-            port: location.port || (location.protocol === 'https:' ? 443 : 80),
-            path: '/peerjs',
-            secure: location.protocol === 'https:'
-        });
-    }
-
-    myPeer.on('open', id => {
-        socket.emit('join-room', roomId, id);
-    });
-
-    myPeer.on('call', call => {
-        console.log('Incoming call from:', call.peer);
-        call.answer(myStream); // Отвечаем своим стримом (даже если он пустой/muted)
+    // Listen for new users joining voice
+    const playersRef = ref(db, `rooms/${roomId}/players`);
+    onValue(playersRef, (snapshot) => {
+        const players = snapshot.val() || {};
         
-        const audio = document.createElement('audio');
-        audio.id = `audio-${call.peer}`;
-        call.on('stream', userAudioStream => {
-            console.log('Received stream from:', call.peer);
-            addAudioStream(audio, userAudioStream);
+        Object.keys(players).forEach(userId => {
+            if (userId !== currentUser.id && players[userId].isVoice && !peers[userId]) {
+                console.log('🔥 Connecting to user:', userId);
+                connectToNewUser(userId, myStream);
+            }
         });
-        
-        call.on('close', () => {
-            audio.remove();
-        });
-        
-        peers[call.peer] = call;
-    });
-
-    socket.on('user-connected', userId => {
-        console.log('User connected to socket room:', userId);
-        if (myStream) {
-            connectToNewUser(userId, myStream);
-        }
-    });
-
-    socket.on('user-disconnected', userId => {
-        console.log('User disconnected:', userId);
-        if (peers[userId]) {
-            peers[userId].close();
-            delete peers[userId];
-        }
-        const audio = document.getElementById(`audio-${userId}`);
-        if (audio) audio.remove();
     });
 }
 
 function connectToNewUser(userId, stream) {
-    console.log('Calling user:', userId);
-    const call = myPeer.call(userId, stream);
-    const audio = document.createElement('audio');
-    audio.id = `audio-${userId}`;
+    if (!myPeer || !stream) {
+        console.error('🔥 Cannot connect - peer or stream not available');
+        return;
+    }
     
-    call.on('stream', userAudioStream => {
-        console.log('Received stream from called user:', userId);
-        addAudioStream(audio, userAudioStream);
+    console.log('🔥 Calling user:', userId);
+    const call = myPeer.call(userId, stream);
+    
+    call.on('stream', (userAudioStream) => {
+        console.log('🔥 Received stream from user:', userId);
+        addAudioStream(userId, userAudioStream);
     });
     
     call.on('close', () => {
-        audio.remove();
+        console.log('🔥 Call with user closed:', userId);
+        removeAudioStream(userId);
     });
     
     peers[userId] = call;
 }
 
-function addAudioStream(audio, stream) {
-    audio.srcObject = stream;
+function addAudioStream(userId, stream) {
+    // Remove existing audio element if any
+    removeAudioStream(userId);
+    
+    const audio = document.createElement('audio');
+    audio.id = `audio-${userId}`;
     audio.autoplay = true;
-    audio.playsinline = true;
-    audio.volume = localStorage.getItem('voice_volume') || 1;
-    document.getElementById('remote-audio-container').append(audio);
+    audio.srcObject = stream;
+    
+    // Set volume from localStorage or default
+    audio.volume = parseFloat(localStorage.getItem('voice_volume') || '0.5');
+    
+    // Add to hidden container
+    let container = document.getElementById('remote-audio-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'remote-audio-container';
+        container.style.display = 'none';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(audio);
+    audioElements[userId] = audio;
+    
+    console.log('🔥 Audio stream added for user:', userId);
+}
+
+function removeAudioStream(userId) {
+    const audio = document.getElementById(`audio-${userId}`);
+    if (audio) {
+        audio.remove();
+    }
+    delete audioElements[userId];
+    
+    // Close peer connection
+    if (peers[userId]) {
+        peers[userId].close();
+        delete peers[userId];
+    }
+    
+    console.log('🔥 Audio stream removed for user:', userId);
+}
+
+function cleanupVoice() {
+    console.log('🔥 Cleaning up voice communication');
+    
+    // Stop local stream
+    if (myStream) {
+        myStream.getTracks().forEach(track => track.stop());
+        myStream = null;
+    }
+    
+    // Close all peer connections
+    Object.values(peers).forEach(peer => peer.close());
+    Object.keys(peers).forEach(userId => removeAudioStream(userId));
+    
+    // Close peer
+    if (myPeer) {
+        myPeer.destroy();
+        myPeer = null;
+    }
+    
+    isVoiceActive = false;
 }
 
 export const toggleVoice = async () => {
@@ -1179,12 +1340,14 @@ export const toggleVoice = async () => {
     
     const btn = document.getElementById('voice-toggle-btn');
     if (!btn) {
-        console.error('Voice toggle button not found');
+        console.error('🔥 Voice toggle button not found');
         return;
     }
     
     if (!isVoiceActive) {
         try {
+            console.log('🔥 Requesting microphone access...');
+            
             // Запрашиваем микрофон
             myStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -1195,23 +1358,65 @@ export const toggleVoice = async () => {
                 video: false
             });
             
+            console.log('🔥 Microphone access granted');
+            
+            // Инициализируем PeerJS если еще не инициализирован
+            if (!myPeer) {
+                myPeer = initializePeer();
+                if (!myPeer) {
+                    throw new Error('Failed to initialize PeerJS');
+                }
+                
+                // Ждем подключения к PeerJS серверу
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('PeerJS connection timeout')), 10000);
+                    myPeer.on('open', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    });
+                });
+            }
+            
             isVoiceActive = true;
             btn.classList.add('active');
             
-            // Обновляем статус в Firebase без Socket.io
+            // Обновляем статус в Firebase
             const userRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
             await update(userRef, {
                 isVoice: true,
-                name: currentUser.name
+                name: currentUser.name,
+                peerId: currentUser.id
             });
             
-            console.log('Voice activated');
+            console.log('🔥 Voice activated, connecting to other users...');
+            
+            // Подключаемся к другим активным пользователям
+            const playersRef = ref(db, `rooms/${currentDiscordRoomId}/players`);
+            const snapshot = await get(playersRef);
+            const players = snapshot.val() || {};
+            
+            Object.keys(players).forEach(userId => {
+                if (userId !== currentUser.id && players[userId].isVoice) {
+                    console.log('🔥 Connecting to user:', userId);
+                    connectToNewUser(userId, myStream);
+                }
+            });
+            
+            console.log('🔥 Voice chat fully activated');
             
         } catch (error) {
-            console.error('Failed to get microphone access:', error);
-            alert('Не удалось получить доступ к микрофону');
+            console.error('🔥 Failed to activate voice:', error);
+            alert('Не удалось получить доступ к микрофону или подключиться к голосовому чату: ' + error.message);
+            
+            // Очистка при ошибке
+            if (myStream) {
+                myStream.getTracks().forEach(track => track.stop());
+                myStream = null;
+            }
         }
     } else {
+        console.log('🔥 Deactivating voice...');
+        
         // Выключаем микрофон
         if (myStream) {
             myStream.getTracks().forEach(track => track.stop());
@@ -1228,7 +1433,11 @@ export const toggleVoice = async () => {
             name: currentUser.name
         });
         
-        safeHaptic('light');
+        // Закрываем все соединения
+        Object.values(peers).forEach(peer => peer.close());
+        Object.keys(peers).forEach(userId => removeAudioStream(userId));
+        
+        console.log('🔥 Voice deactivated');
     }
     
     const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
@@ -1815,7 +2024,6 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
-
 
 
 
