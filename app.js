@@ -870,33 +870,55 @@ export const joinDiscordRoom = async (roomId) => {
 };
 
 function listenToChat(roomId) {
+    console.log('Starting to listen to chat for room:', roomId);
     const chatRef = ref(db, `rooms/${roomId}/messages`);
+    
     onValue(chatRef, (snapshot) => {
         const msgs = [];
         snapshot.forEach(child => {
-            msgs.push(child.val());
+            const msg = child.val();
+            if (msg) {
+                msgs.push({ id: child.key, ...msg });
+            }
         });
+        
+        console.log('Received messages:', msgs);
         renderMessages(msgs);
     });
 }
 
 function renderMessages(msgs) {
     const messagesContainer = document.getElementById('chat-messages');
-    if (!messagesContainer) return;
+    if (!messagesContainer) {
+        console.error('Messages container not found');
+        return;
+    }
+    
+    console.log('Rendering messages:', msgs);
+    
+    if (msgs.length === 0) {
+        messagesContainer.innerHTML = '<div style="text-align: center; color: rgba(255,255,255,0.3); padding: 20px;">Нет сообщений</div>';
+        return;
+    }
+    
     messagesContainer.innerHTML = msgs.map(m => {
         const isSelf = m.userId === currentUser.id;
         const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        
         return `
             <div class="new-message ${isSelf ? 'self' : 'other'}">
-                ${!isSelf ? `<span class="new-message-sender">${m.userName}</span>` : ''}
+                ${!isSelf ? `<span class="new-message-sender">${m.userName || 'Anonymous'}</span>` : ''}
                 <div class="new-message-bubble">
-                    ${m.text}
+                    ${m.text || ''}
                     ${time ? `<span class="new-message-time">${time}</span>` : ''}
                 </div>
             </div>
         `;
     }).join('');
+    
+    // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    console.log('Messages rendered and scrolled to bottom');
 }
 
 // Make function global for onclick handlers
@@ -1121,43 +1143,35 @@ export const toggleVoice = async () => {
             isVoiceActive = true;
             btn.classList.add('active');
             
-            // Если мы уже в комнате, обзваниваем всех
-            const playersRef = ref(db, `rooms/${currentDiscordRoomId}/players`);
-            const snap = await get(playersRef);
-            const players = snap.val();
+            // Обновляем статус в Firebase без Socket.io
+            const userRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
+            await update(userRef, {
+                isVoice: true,
+                name: currentUser.name
+            });
             
-            if (players) {
-                Object.keys(players).forEach(userId => {
-                    if (userId !== currentUser.id && players[userId].isVoice) {
-                        connectToNewUser(userId, myStream);
-                    }
-                });
-            }
+            console.log('Voice activated');
             
-            safeHaptic('success');
-        } catch (err) {
-            console.error('Failed to get local stream', err);
-            alert('Не удалось получить доступ к микрофону. Проверьте разрешения в браузере.');
-            return;
+        } catch (error) {
+            console.error('Failed to get microphone access:', error);
+            alert('Не удалось получить доступ к микрофону');
         }
     } else {
         // Выключаем микрофон
-        isVoiceActive = false;
-        btn.classList.remove('active');
-        
         if (myStream) {
             myStream.getTracks().forEach(track => track.stop());
             myStream = null;
         }
         
-        // Закрываем все текущие звонки
-        Object.keys(peers).forEach(userId => {
-            peers[userId].close();
-            delete peers[userId];
-        });
+        isVoiceActive = false;
+        btn.classList.remove('active');
         
-        // Удаляем аудио-элементы
-        document.getElementById('remote-audio-container').innerHTML = '';
+        // Обновляем статус в Firebase
+        const userRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
+        await update(userRef, {
+            isVoice: false,
+            name: currentUser.name
+        });
         
         safeHaptic('light');
     }
@@ -1746,5 +1760,6 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
+
 
 
