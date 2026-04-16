@@ -44,35 +44,6 @@
         </header>
 
         <main id="game-list">
-            <!-- Список игр будет здесь -->
-            <div class="game-card" onclick="startGame('mathbattle')">
-                <div class="game-preview">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg>
-                </div>
-                <div class="game-info">
-                    <h3>Числовой Штурм</h3>
-                    <p>Кто быстрее считает в уме?</p>
-                    <div class="game-meta">
-                        <span class="tag">Онлайн</span>
-                        <span class="tag">Математика</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="game-card" onclick="startGame('colorcatch')">
-                <div class="game-preview">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-                </div>
-                <div class="game-info">
-                    <h3>Цветная Ловушка</h3>
-                    <p>Доверяй разуму, а не глазам</p>
-                    <div class="game-meta">
-                        <span class="tag">Онлайн</span>
-                        <span class="tag">Хардкор</span>
-                    </div>
-                </div>
-            </div>
-
             <div class="game-card" onclick="startGame('tictactoe')">
                 <div class="game-preview">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -83,20 +54,6 @@
                     <div class="game-meta">
                         <span class="tag">Онлайн</span>
                         <span class="tag">PVP</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="game-card" onclick="startGame('emojiduel')">
-                <div class="game-preview">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                </div>
-                <div class="game-info">
-                    <h3>Реакция</h3>
-                    <p>Стань самым быстрым мастером</p>
-                    <div class="game-meta">
-                        <span class="tag">Онлайн</span>
-                        <span class="tag">Дуэль</span>
                     </div>
                 </div>
             </div>
@@ -117,58 +74,429 @@
 
         <main id="rooms-screen" class="hidden">
             <div class="screen-header">
-                <h2>Комнаты</h2>
-                <p>Голосовое общение и чаты</p>
+                <h2>Пространства</h2>
+                <p>Общайтесь и находите друзей в реальном времени</p>
             </div>
-            <div class="discord-layout">
-                <div class="discord-sidebar">
-                    <div class="create-room-circle" onclick="openCreateRoomModal()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </div>
-                    <div class="discord-divider"></div>
-                    <div id="discord-server-list">
-                        <!-- Серверы будут здесь -->
+            
+            <div class="rooms-container">
+                <div class="rooms-actions">
+                    <button class="create-action-btn" onclick="openCreateRoomModal()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Создать пространство
+                    </button>
+                </div>
+
+                <div id="room-welcome-view">
+                    <div id="rooms-feed" class="glass-grid">
+                        <!-- Список комнат -->
                     </div>
                 </div>
-                <div class="discord-content">
-                    <div id="room-welcome-view">
-                        <div id="rooms-feed">
-                            <!-- Список комнат -->
-                        </div>
-                    </div>
-                    <div id="room-active-view" class="hidden">
-                        <div class="room-header">
-                            <div class="room-header-info">
-                                <span class="hash">#</span>
-                                <h3 id="active-room-name">Комната</h3>
+
+                <div id="room-active-view" class="hidden">
+                    <div class="new-room-container">
+                        <!-- Header -->
+                        <div class="new-room-header">
+                            <div class="new-room-title">
+                                <div class="new-room-dot"></div>
+                                <h2 id="active-room-name">Комната</h2>
                             </div>
-                            <div class="room-header-actions">
-                                <button id="voice-toggle-btn" class="voice-btn" onclick="toggleVoice()">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                            <div class="new-room-actions">
+                                <button class="new-icon-btn" onclick="openRoomSettings()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                                 </button>
-                                <button class="leave-room-btn" onclick="leaveDiscordRoom()">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                <button class="new-icon-btn new-voice-btn" onclick="toggleVoice()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                                </button>
+                                <button class="new-icon-btn new-leave-btn" onclick="leaveDiscordRoom()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                                 </button>
                             </div>
                         </div>
-                        <div class="room-main-area">
-                            <div class="chat-area">
-                                <div id="chat-messages"></div>
-                                <div class="chat-input-container">
-                                    <input type="text" id="chat-input" placeholder="Написать в #комната">
-                                    <button id="send-msg-btn" onclick="sendChatMessage()">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                                    </button>
+
+                        <!-- Participants -->
+                        <div class="new-participants" id="voice-members-list">
+                            <!-- Participants will be rendered here -->
+                        </div>
+
+                        <!-- Chat -->
+                        <div class="new-chat">
+                            <div class="new-messages" id="chat-messages">
+                                <!-- Messages will be rendered here -->
+                            </div>
+                            <div class="new-input-area">
+                                <button class="new-emoji-btn" onclick="toggleEmojiPanel()">
+                                    😊
+                                </button>
+                                <input type="text" id="chat-input" placeholder="Сообщение..." class="new-input">
+                                <button class="new-send-btn" onclick="handleSendMessage()">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            </div>
+                            <div class="new-emoji-panel" id="emoji-panel">
+                                <div class="emoji-header">
+                                    <div class="emoji-tabs">
+                                        <button class="emoji-tab active" data-tab="recent" onclick="switchEmojiTab('recent')">
+                                            <span>🕐</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="smileys" onclick="switchEmojiTab('smileys')">
+                                            <span>😀</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="people" onclick="switchEmojiTab('people')">
+                                            <span>👋</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="animals" onclick="switchEmojiTab('animals')">
+                                            <span>🐻</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="food" onclick="switchEmojiTab('food')">
+                                            <span>🍔</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="activities" onclick="switchEmojiTab('activities')">
+                                            <span>⚽</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="travel" onclick="switchEmojiTab('travel')">
+                                            <span>🚗</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="objects" onclick="switchEmojiTab('objects')">
+                                            <span>💡</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="symbols" onclick="switchEmojiTab('symbols')">
+                                            <span>❤️</span>
+                                        </button>
+                                        <button class="emoji-tab" data-tab="flags" onclick="switchEmojiTab('flags')">
+                                            <span>🏳️</span>
+                                        </button>
+                                    </div>
+                                    <div class="emoji-search">
+                                        <input type="text" placeholder="Поиск эмодзи..." class="emoji-search-input" onkeyup="searchEmojis(this.value)">
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="voice-members" id="voice-members-list">
-                                <!-- Список участников в голосе -->
+                                <div class="emoji-content">
+                                    <div class="emoji-category active" id="recent">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('😀')">😀</span>
+                                            <span onclick="insertEmoji('😂')">😂</span>
+                                            <span onclick="insertEmoji('❤️')">❤️</span>
+                                            <span onclick="insertEmoji('👍')">👍</span>
+                                            <span onclick="insertEmoji('😊')">😊</span>
+                                            <span onclick="insertEmoji('🎉')">🎉</span>
+                                            <span onclick="insertEmoji('🔥')">🔥</span>
+                                            <span onclick="insertEmoji('✨')">✨</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="smileys">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('😀')">😀</span><span onclick="insertEmoji('😃')">😃</span><span onclick="insertEmoji('😄')">😄</span><span onclick="insertEmoji('😁')">😁</span><span onclick="insertEmoji('😆')">😆</span><span onclick="insertEmoji('😅')">😅</span><span onclick="insertEmoji('🤣')">🤣</span><span onclick="insertEmoji('😂')">😂</span>
+                                            <span onclick="insertEmoji('🙂')">🙂</span><span onclick="insertEmoji('🙃')">🙃</span><span onclick="insertEmoji('😉')">😉</span><span onclick="insertEmoji('😊')">😊</span><span onclick="insertEmoji('😇')">😇</span><span onclick="insertEmoji('🥰')">🥰</span><span onclick="insertEmoji('😍')">😍</span><span onclick="insertEmoji('🤩')">🤩</span>
+                                            <span onclick="insertEmoji('😘')">😘</span><span onclick="insertEmoji('😗')">😗</span><span onclick="insertEmoji('😚')">😚</span><span onclick="insertEmoji('😙')">😙</span><span onclick="insertEmoji('😋')">😋</span><span onclick="insertEmoji('😛')">😛</span><span onclick="insertEmoji('😜')">😜</span><span onclick="insertEmoji('🤪')">🤪</span>
+                                            <span onclick="insertEmoji('😝')">😝</span><span onclick="insertEmoji('🤑')">🤑</span><span onclick="insertEmoji('🤗')">🤗</span><span onclick="insertEmoji('🤭')">🤭</span><span onclick="insertEmoji('🤫')">🤫</span><span onclick="insertEmoji('🤔')">🤔</span><span onclick="insertEmoji('🤐')">🤐</span><span onclick="insertEmoji('🤨')">🤨</span>
+                                            <span onclick="insertEmoji('😐')">😐</span><span onclick="insertEmoji('😑')">😑</span><span onclick="insertEmoji('😶')">😶</span><span onclick="insertEmoji('😏')">😏</span><span onclick="insertEmoji('😒')">😒</span><span onclick="insertEmoji('🙄')">🙄</span><span onclick="insertEmoji('😬')">😬</span><span onclick="insertEmoji('🤥')">🤥</span>
+                                            <span onclick="insertEmoji('😌')">😌</span><span onclick="insertEmoji('😔')">😔</span><span onclick="insertEmoji('😪')">😪</span><span onclick="insertEmoji('🤤')">🤤</span><span onclick="insertEmoji('😴')">😴</span><span onclick="insertEmoji('😷')">😷</span><span onclick="insertEmoji('🤒')">🤒</span><span onclick="insertEmoji('🤕')">🤕</span>
+                                            <span onclick="insertEmoji('🤢')">🤢</span><span onclick="insertEmoji('🤮')">🤮</span><span onclick="insertEmoji('🤧')">🤧</span><span onclick="insertEmoji('🥵')">🥵</span><span onclick="insertEmoji('🥶')">🥶</span><span onclick="insertEmoji('🥴')">🥴</span><span onclick="insertEmoji('😵')">😵</span><span onclick="insertEmoji('🤯')">🤯</span>
+                                            <span onclick="insertEmoji('🤠')">🤠</span><span onclick="insertEmoji('🥳')">🥳</span><span onclick="insertEmoji('😎')">😎</span><span onclick="insertEmoji('🤓')">🤓</span><span onclick="insertEmoji('🧐')">🧐</span><span onclick="insertEmoji('😕')">😕</span><span onclick="insertEmoji('😟')">😟</span><span onclick="insertEmoji('🙁')">🙁</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="people">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('👋')">👋</span><span onclick="insertEmoji('🤚')">🤚</span><span onclick="insertEmoji('🖐️')">🖐️</span><span onclick="insertEmoji('✋')">✋</span><span onclick="insertEmoji('🖖')">🖖</span><span onclick="insertEmoji('👌')">👌</span><span onclick="insertEmoji('🤌')">🤌</span><span onclick="insertEmoji('🤏')">🤏</span>
+                                            <span onclick="insertEmoji('✌️')">✌️</span><span onclick="insertEmoji('🤞')">🤞</span><span onclick="insertEmoji('🤟')">🤟</span><span onclick="insertEmoji('🤘')">🤘</span><span onclick="insertEmoji('🤙')">🤙</span><span onclick="insertEmoji('👈')">👈</span><span onclick="insertEmoji('👉')">👉</span><span onclick="insertEmoji('👆')">👆</span>
+                                            <span onclick="insertEmoji('👇')">👇</span><span onclick="insertEmoji('☝️')">☝️</span><span onclick="insertEmoji('✊')">✊</span><span onclick="insertEmoji('👊')">👊</span><span onclick="insertEmoji('🤛')">🤛</span><span onclick="insertEmoji('🤜')">🤜</span><span onclick="insertEmoji('👏')">👏</span><span onclick="insertEmoji('🙌')">🙌</span>
+                                            <span onclick="insertEmoji('👐')">👐</span><span onclick="insertEmoji('🤲')">🤲</span><span onclick="insertEmoji('🙏')">🙏</span><span onclick="insertEmoji('🤝')">🤝</span><span onclick="insertEmoji('💪')">💪</span><span onclick="insertEmoji('🦾')">🦾</span><span onclick="insertEmoji('🦿')">🦿</span><span onclick="insertEmoji('🦵')">🦵</span>
+                                            <span onclick="insertEmoji('🦶')">🦶</span><span onclick="insertEmoji('👂')">👂</span><span onclick="insertEmoji('🦻')">🦻</span><span onclick="insertEmoji('👃')">👃</span><span onclick="insertEmoji('🧠')">🧠</span><span onclick="insertEmoji('🫀')">🫀</span><span onclick="insertEmoji('🫁')">🫁</span><span onclick="insertEmoji('🦷')">🦷</span>
+                                            <span onclick="insertEmoji('🦴')">🦴</span><span onclick="insertEmoji('👀')">👀</span><span onclick="insertEmoji('👁️')">👁️</span><span onclick="insertEmoji('👅')">👅</span><span onclick="insertEmoji('👄')">👄</span><span onclick="insertEmoji('👶')">👶</span><span onclick="insertEmoji('🧒')">🧒</span><span onclick="insertEmoji('👦')">👦</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="animals">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('🐶')">🐶</span><span onclick="insertEmoji('🐱')">🐱</span><span onclick="insertEmoji('🐭')">🐭</span><span onclick="insertEmoji('🐹')">🐹</span><span onclick="insertEmoji('🐰')">🐰</span><span onclick="insertEmoji('🦊')">🦊</span><span onclick="insertEmoji('🐻')">🐻</span><span onclick="insertEmoji('🐼')">🐼</span>
+                                            <span onclick="insertEmoji('🐨')">🐨</span><span onclick="insertEmoji('🐯')">🐯</span><span onclick="insertEmoji('🦁')">🦁</span><span onclick="insertEmoji('🐮')">🐮</span><span onclick="insertEmoji('🐷')">🐷</span><span onclick="insertEmoji('🐽')">🐽</span><span onclick="insertEmoji('🐸')">🐸</span><span onclick="insertEmoji('🐵')">🐵</span>
+                                            <span onclick="insertEmoji('🙈')">🙈</span><span onclick="insertEmoji('🙉')">🙉</span><span onclick="insertEmoji('🙊')">🙊</span><span onclick="insertEmoji('🐒')">🐒</span><span onclick="insertEmoji('🐔')">🐔</span><span onclick="insertEmoji('🐧')">🐧</span><span onclick="insertEmoji('🐦')">🐦</span><span onclick="insertEmoji('🐤')">🐤</span>
+                                            <span onclick="insertEmoji('🐣')">🐣</span><span onclick="insertEmoji('🐥')">🐥</span><span onclick="insertEmoji('🦆')">🦆</span><span onclick="insertEmoji('🦅')">🦅</span><span onclick="insertEmoji('🦉')">🦉</span><span onclick="insertEmoji('🦇')">🦇</span><span onclick="insertEmoji('🐺')">🐺</span><span onclick="insertEmoji('🐗')">🐗</span>
+                                            <span onclick="insertEmoji('🐴')">🐴</span><span onclick="insertEmoji('🦄')">🦄</span><span onclick="insertEmoji('🐝')">🐝</span><span onclick="insertEmoji('🐛')">🐛</span><span onclick="insertEmoji('🦋')">🦋</span><span onclick="insertEmoji('🐌')">🐌</span><span onclick="insertEmoji('🐞')">🐞</span><span onclick="insertEmoji('🐜')">🐜</span>
+                                            <span onclick="insertEmoji('🦟')">🦟</span><span onclick="insertEmoji('🦗')">🦗</span><span onclick="insertEmoji('🕷️')">🕷️</span><span onclick="insertEmoji('🕸️')">🕸️</span><span onclick="insertEmoji('🦂')">🦂</span><span onclick="insertEmoji('🐢')">🐢</span><span onclick="insertEmoji('🐍')">🐍</span><span onclick="insertEmoji('🦎')">🦎</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="food">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('🍏')">🍏</span><span onclick="insertEmoji('🍎')">🍎</span><span onclick="insertEmoji('🍐')">🍐</span><span onclick="insertEmoji('🍊')">🍊</span><span onclick="insertEmoji('🍋')">🍋</span><span onclick="insertEmoji('🍌')">🍌</span><span onclick="insertEmoji('🍉')">🍉</span><span onclick="insertEmoji('🍇')">🍇</span>
+                                            <span onclick="insertEmoji('🍓')">🍓</span><span onclick="insertEmoji('🍈')">🍈</span><span onclick="insertEmoji('🍒')">🍒</span><span onclick="insertEmoji('🍑')">🍑</span><span onclick="insertEmoji('🥭')">🥭</span><span onclick="insertEmoji('🍍')">🍍</span><span onclick="insertEmoji('🥥')">🥥</span><span onclick="insertEmoji('🥝')">🥝</span>
+                                            <span onclick="insertEmoji('🍅')">🍅</span><span onclick="insertEmoji('🍆')">🍆</span><span onclick="insertEmoji('🥑')">🥑</span><span onclick="insertEmoji('🥦')">🥦</span><span onclick="insertEmoji('🥬')">🥬</span><span onclick="insertEmoji('🥒')">🥒</span><span onclick="insertEmoji('🌶️')">🌶️</span><span onclick="insertEmoji('🌽')">🌽</span>
+                                            <span onclick="insertEmoji('🥕')">🥕</span><span onclick="insertEmoji('🫒')">🫒</span><span onclick="insertEmoji('🧄')">🧄</span><span onclick="insertEmoji('🧅')">🧅</span><span onclick="insertEmoji('🥔')">🥔</span><span onclick="insertEmoji('🍠')">🍠</span><span onclick="insertEmoji('🥐')">🥐</span><span onclick="insertEmoji('🥯')">🥯</span>
+                                            <span onclick="insertEmoji('🍞')">🍞</span><span onclick="insertEmoji('🥖')">🥖</span><span onclick="insertEmoji('🥨')">🥨</span><span onclick="insertEmoji('🧀')">🧀</span><span onclick="insertEmoji('🥚')">🥚</span><span onclick="insertEmoji('🍳')">🍳</span><span onclick="insertEmoji('🥓')">🥓</span><span onclick="insertEmoji('🥩')">🥩</span>
+                                            <span onclick="insertEmoji('🍗')">🍗</span><span onclick="insertEmoji('🍖')">🍖</span><span onclick="insertEmoji('🦴')">🦴</span><span onclick="insertEmoji('🌭')">🌭</span><span onclick="insertEmoji('🍔')">🍔</span><span onclick="insertEmoji('🍟')">🍟</span><span onclick="insertEmoji('🍕')">🍕</span><span onclick="insertEmoji('🥪')">🥪</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="activities">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('⚽')">⚽</span><span onclick="insertEmoji('🏀')">🏀</span><span onclick="insertEmoji('🏈')">🏈</span><span onclick="insertEmoji('⚾')">⚾</span><span onclick="insertEmoji('🥎')">🥎</span><span onclick="insertEmoji('🎾')">🎾</span><span onclick="insertEmoji('🏐')">🏐</span><span onclick="insertEmoji('🏉')">🏉</span>
+                                            <span onclick="insertEmoji('🥏')">🥏</span><span onclick="insertEmoji('🎱')">🎱</span><span onclick="insertEmoji('🪀')">🪀</span><span onclick="insertEmoji('🏓')">🏓</span><span onclick="insertEmoji('🏸')">🏸</span><span onclick="insertEmoji('🏒')">🏒</span><span onclick="insertEmoji('🏑')">🏑</span><span onclick="insertEmoji('🥍')">🥍</span>
+                                            <span onclick="insertEmoji('🏏')">🏏</span><span onclick="insertEmoji('🥅')">🥅</span><span onclick="insertEmoji('⛳')">⛳</span><span onclick="insertEmoji('🪁')">🪁</span><span onclick="insertEmoji('🏹')">🏹</span><span onclick="insertEmoji('🎣')">🎣</span><span onclick="insertEmoji('🤿')">🤿</span><span onclick="insertEmoji('🥊')">🥊</span>
+                                            <span onclick="insertEmoji('🥋')">🥋</span><span onclick="insertEmoji('🎽')">🎽</span><span onclick="insertEmoji('🎿')">🎿</span><span onclick="insertEmoji('🛷')">🛷</span><span onclick="insertEmoji('🥌')">🥌</span><span onclick="insertEmoji('🎯')">🎯</span><span onclick="insertEmoji('🎮')">🎮</span><span onclick="insertEmoji('🕹️')">🕹️</span>
+                                            <span onclick="insertEmoji('🎰')">🎰</span><span onclick="insertEmoji('🧩')">🧩</span><span onclick="insertEmoji('🎪')">🎪</span><span onclick="insertEmoji('🎭')">🎭</span><span onclick="insertEmoji('🎨')">🎨</span><span onclick="insertEmoji('🎬')">🎬</span><span onclick="insertEmoji('🎤')">🎤</span><span onclick="insertEmoji('🎧')">🎧</span>
+                                            <span onclick="insertEmoji('🎼')">🎼</span><span onclick="insertEmoji('🎵')">🎵</span><span onclick="insertEmoji('🎶')">🎶</span><span onclick="insertEmoji('🎹')">🎹</span><span onclick="insertEmoji('🥁')">🥁</span><span onclick="insertEmoji('🎷')">🎷</span><span onclick="insertEmoji('🎺')">🎺</span><span onclick="insertEmoji('🎸')">🎸</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="travel">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('🚗')">🚗</span><span onclick="insertEmoji('🚕')">🚕</span><span onclick="insertEmoji('🚙')">🚙</span><span onclick="insertEmoji('🚌')">🚌</span><span onclick="insertEmoji('🚎')">🚎</span><span onclick="insertEmoji('🏎️')">🏎️</span><span onclick="insertEmoji('🚓')">🚓</span><span onclick="insertEmoji('🚑')">🚑</span>
+                                            <span onclick="insertEmoji('🚒')">🚒</span><span onclick="insertEmoji('🚐')">🚐</span><span onclick="insertEmoji('🛻')">🛻</span><span onclick="insertEmoji('🚚')">🚚</span><span onclick="insertEmoji('🚛')">🚛</span><span onclick="insertEmoji('🚜')">🚜</span><span onclick="insertEmoji('🏍️')">🏍️</span><span onclick="insertEmoji('🛵')">🛵</span>
+                                            <span onclick="insertEmoji('🚲')">🚲</span><span onclick="insertEmoji('🛴')">🛴</span><span onclick="insertEmoji('🛹')">🛹</span><span onclick="insertEmoji('🛼')">🛼</span><span onclick="insertEmoji('🚁')">🚁</span><span onclick="insertEmoji('🛸')">🛸</span><span onclick="insertEmoji('🚀')">🚀</span><span onclick="insertEmoji('✈️')">✈️</span>
+                                            <span onclick="insertEmoji('🛩️')">🛩️</span><span onclick="insertEmoji('🛫')">🛫</span><span onclick="insertEmoji('🛬')">🛬</span><span onclick="insertEmoji('🪂')">🪂</span><span onclick="insertEmoji('💺')">💺</span><span onclick="insertEmoji('🚂')">🚂</span><span onclick="insertEmoji('🚆')">🚆</span><span onclick="insertEmoji('🚄')">🚄</span>
+                                            <span onclick="insertEmoji('🚅')">🚅</span><span onclick="insertEmoji('🚈')">🚈</span><span onclick="insertEmoji('🚝')">🚝</span><span onclick="insertEmoji('🚋')">🚋</span><span onclick="insertEmoji('🚞')">🚞</span><span onclick="insertEmoji('🚃')">🚃</span><span onclick="insertEmoji('🚎')">🚎</span><span onclick="insertEmoji('🚐')">🚐</span>
+                                            <span onclick="insertEmoji('🚑')">🚑</span><span onclick="insertEmoji('🚒')">🚒</span><span onclick="insertEmoji('🚓')">🚓</span><span onclick="insertEmoji('🚔')">🚔</span><span onclick="insertEmoji('🚕')">🚕</span><span onclick="insertEmoji('🚖')">🚖</span><span onclick="insertEmoji('🚗')">🚗</span><span onclick="insertEmoji('🚘')">🚘</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="objects">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('⌚')">⌚</span><span onclick="insertEmoji('📱')">📱</span><span onclick="insertEmoji('📲')">📲</span><span onclick="insertEmoji('💻')">💻</span><span onclick="insertEmoji('⌨️')">⌨️</span><span onclick="insertEmoji('🖥️')">🖥️</span><span onclick="insertEmoji('🖨️')">🖨️</span><span onclick="insertEmoji('🖱️')">🖱️</span>
+                                            <span onclick="insertEmoji('🖲️')">🖲️</span><span onclick="insertEmoji('🕹️')">🕹️</span><span onclick="insertEmoji('🗜️')">🗜️</span><span onclick="insertEmoji('💽')">💽</span><span onclick="insertEmoji('💾')">💾</span><span onclick="insertEmoji('💿')">💿</span><span onclick="insertEmoji('📀')">📀</span><span onclick="insertEmoji('📼')">📼</span>
+                                            <span onclick="insertEmoji('📷')">📷</span><span onclick="insertEmoji('📸')">📸</span><span onclick="insertEmoji('📹')">📹</span><span onclick="insertEmoji('🎥')">🎥</span><span onclick="insertEmoji('🎬')">🎬</span><span onclick="insertEmoji('📽️')">📽️</span><span onclick="insertEmoji('🎞️')">🎞️</span><span onclick="insertEmoji('📟')">📟</span>
+                                            <span onclick="insertEmoji('📠')">📠</span><span onclick="insertEmoji('📺')">📺</span><span onclick="insertEmoji('📻')">📻</span><span onclick="insertEmoji('🎙️')">🎙️</span><span onclick="insertEmoji('🎚️')">🎚️</span><span onclick="insertEmoji('🎛️')">🎛️</span><span onclick="insertEmoji('🧭')">🧭</span><span onclick="insertEmoji('⏱️')">⏱️</span>
+                                            <span onclick="insertEmoji('⏲️')">⏲️</span><span onclick="insertEmoji('⏰')">⏰</span><span onclick="insertEmoji('🕰️')">🕰️</span><span onclick="insertEmoji('⌛')">⌛</span><span onclick="insertEmoji('⏳')">⏳</span><span onclick="insertEmoji('⌚')">⌚</span><span onclick="insertEmoji('⏰')">⏰</span><span onclick="insertEmoji('⏱️')">⏱️</span>
+                                            <span onclick="insertEmoji('⏲️')">⏲️</span><span onclick="insertEmoji('🕰️')">🕰️</span><span onclick="insertEmoji('⌛')">⌛</span><span onclick="insertEmoji('⏳')">⏳</span><span onclick="insertEmoji('⌚')">⌚</span><span onclick="insertEmoji('⏰')">⏰</span><span onclick="insertEmoji('⏱️')">⏱️</span><span onclick="insertEmoji('⏲️')">⏲️</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="symbols">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('❤️')">❤️</span><span onclick="insertEmoji('🧡')">🧡</span><span onclick="insertEmoji('💛')">💛</span><span onclick="insertEmoji('💚')">💚</span><span onclick="insertEmoji('💙')">💙</span><span onclick="insertEmoji('💜')">💜</span><span onclick="insertEmoji('🖤')">🖤</span><span onclick="insertEmoji('🤍')">🤍</span>
+                                            <span onclick="insertEmoji('🤎')">🤎</span><span onclick="insertEmoji('💔')">💔</span><span onclick="insertEmoji('❣️')">❣️</span><span onclick="insertEmoji('💕')">💕</span><span onclick="insertEmoji('💞')">💞</span><span onclick="insertEmoji('💓')">💓</span><span onclick="insertEmoji('💗')">💗</span><span onclick="insertEmoji('💖')">💖</span>
+                                            <span onclick="insertEmoji('💘')">💘</span><span onclick="insertEmoji('💝')">💝</span><span onclick="insertEmoji('💟')">💟</span><span onclick="insertEmoji('☮️')">☮️</span><span onclick="insertEmoji('✝️')">✝️</span><span onclick="insertEmoji('☪️')">☪️</span><span onclick="insertEmoji('🕉️')">🕉️</span><span onclick="insertEmoji('☸️')">☸️</span>
+                                            <span onclick="insertEmoji('✡️')">✡️</span><span onclick="insertEmoji('🔯')">🔯</span><span onclick="insertEmoji('🕎')">🕎</span><span onclick="insertEmoji('☯️')">☯️</span><span onclick="insertEmoji('☦️')">☦️</span><span onclick="insertEmoji('🛐')">🛐</span><span onclick="insertEmoji('⛎')">⛎</span><span onclick="insertEmoji('♈')">♈</span>
+                                            <span onclick="insertEmoji('♉')">♉</span><span onclick="insertEmoji('♊')">♊</span><span onclick="insertEmoji('♋')">♋</span><span onclick="insertEmoji('♌')">♌</span><span onclick="insertEmoji('♍')">♍</span><span onclick="insertEmoji('♎')">♎</span><span onclick="insertEmoji('♏')">♏</span><span onclick="insertEmoji('♐')">♐</span>
+                                            <span onclick="insertEmoji('♑')">♑</span><span onclick="insertEmoji('♒')">♒</span><span onclick="insertEmoji('♓')">♓</span><span onclick="insertEmoji('🆔')">🆔</span><span onclick="insertEmoji('⚛️')">⚛️</span><span onclick="insertEmoji('🉑')">🉑</span><span onclick="insertEmoji('☢️')">☢️</span><span onclick="insertEmoji('☣️')">☣️</span>
+                                        </div>
+                                    </div>
+                                    <div class="emoji-category" id="flags">
+                                        <div class="emoji-grid">
+                                            <span onclick="insertEmoji('🏳️')">🏳️</span><span onclick="insertEmoji('🏴')">🏴</span><span onclick="insertEmoji('🏁')">🏁</span><span onclick="insertEmoji('🚩')">🚩</span><span onclick="insertEmoji('🎌')">🎌</span><span onclick="insertEmoji('🏴‍☠️')">🏴‍☠️</span><span onclick="insertEmoji('🇦🇫')">🇦🇫</span><span onclick="insertEmoji('🇦🇽')">🇦🇽</span>
+                                            <span onclick="insertEmoji('🇦🇱')">🇦🇱</span><span onclick="insertEmoji('🇩🇿')">🇩🇿</span><span onclick="insertEmoji('🇦🇸')">🇦🇸</span><span onclick="insertEmoji('🇦🇩')">🇦🇩</span><span onclick="insertEmoji('🇦🇴')">🇦🇴</span><span onclick="insertEmoji('🇦🇮')">🇦🇮</span><span onclick="insertEmoji('🇦🇶')">🇦🇶</span><span onclick="insertEmoji('🇦🇬')">🇦🇬</span>
+                                            <span onclick="insertEmoji('🇦🇷')">🇦🇷</span><span onclick="insertEmoji('🇦🇲')">🇦🇲</span><span onclick="insertEmoji('🇦🇼')">🇦🇼</span><span onclick="insertEmoji('🇦🇺')">🇦🇺</span><span onclick="insertEmoji('🇦🇹')">🇦🇹</span><span onclick="insertEmoji('🇦🇿')">🇦🇿</span><span onclick="insertEmoji('🇧🇸')">🇧🇸</span><span onclick="insertEmoji('🇧🇭')">🇧🇭</span>
+                                            <span onclick="insertEmoji('🇧🇩')">🇧🇩</span><span onclick="insertEmoji('🇧🇧')">🇧🇧</span><span onclick="insertEmoji('🇧🇾')">🇧🇾</span><span onclick="insertEmoji('🇧🇪')">🇧🇪</span><span onclick="insertEmoji('🇧🇿')">🇧🇿</span><span onclick="insertEmoji('🇧🇯')">🇧🇯</span><span onclick="insertEmoji('🇧🇹')">🇧🇹</span><span onclick="insertEmoji('🇧🇴')">🇧🇴</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
+
+        <script>
+            // Toggle emoji panel
+            function toggleEmojiPanel() {
+                const panel = document.getElementById('emoji-panel');
+                panel.classList.toggle('show');
+            }
+
+            // Switch emoji tabs
+            function switchEmojiTab(tabName) {
+                // Hide all categories
+                document.querySelectorAll('.emoji-category').forEach(cat => {
+                    cat.classList.remove('active');
+                });
+                
+                // Remove active from all tabs
+                document.querySelectorAll('.emoji-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Show selected category
+                const selectedCategory = document.getElementById(tabName);
+                if (selectedCategory) {
+                    selectedCategory.classList.add('active');
+                }
+                
+                // Add active to selected tab
+                const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+                if (selectedTab) {
+                    selectedTab.classList.add('active');
+                }
+            }
+
+            // Search emojis
+            function searchEmojis(query) {
+                if (!query) {
+                    // Show recent tab when search is empty
+                    switchEmojiTab('recent');
+                    return;
+                }
+
+                // Hide all categories
+                document.querySelectorAll('.emoji-category').forEach(cat => {
+                    cat.classList.remove('active');
+                });
+
+                // Create or show search results
+                let searchResults = document.getElementById('search-results');
+                if (!searchResults) {
+                    searchResults = document.createElement('div');
+                    searchResults.id = 'search-results';
+                    searchResults.className = 'emoji-category emoji-search-results';
+                    searchResults.innerHTML = '<div class="emoji-grid"></div>';
+                    document.querySelector('.emoji-content').appendChild(searchResults);
+                }
+
+                searchResults.classList.add('active');
+                const searchGrid = searchResults.querySelector('.emoji-grid');
+                searchGrid.innerHTML = '';
+
+                // Search through all emoji spans
+                const allEmojis = document.querySelectorAll('.emoji-grid span');
+                const foundEmojis = new Set();
+
+                allEmojis.forEach(span => {
+                    const emoji = span.textContent;
+                    // Simple search - check if emoji text contains query (for text search)
+                    // In real implementation, you'd search emoji names/descriptions
+                    if (emoji.includes(query) || query.length <= 2) { // Show all if short query
+                        foundEmojis.add(emoji);
+                    }
+                });
+
+                // Display found emojis
+                foundEmojis.forEach(emoji => {
+                    const emojiSpan = document.createElement('span');
+                    emojiSpan.textContent = emoji;
+                    emojiSpan.onclick = () => insertEmoji(emoji);
+                    searchGrid.appendChild(emojiSpan);
+                });
+
+                // Remove active from all tabs when searching
+                document.querySelectorAll('.emoji-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+            }
+
+            // Close emoji panel when clicking outside
+            document.addEventListener('click', (e) => {
+                const panel = document.getElementById('emoji-panel');
+                const emojiBtn = document.querySelector('.new-emoji-btn');
+                
+                if (!panel.contains(e.target) && !emojiBtn.contains(e.target)) {
+                    panel.classList.remove('show');
+                }
+            });
+
+            // Insert emoji into input
+            function insertEmoji(emoji) {
+                const input = document.getElementById('chat-input');
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                const text = input.value;
+                
+                input.value = text.substring(0, start) + emoji + text.substring(end);
+                input.selectionStart = input.selectionEnd = start + emoji.length;
+                input.focus();
+                
+                // Save to recent emojis
+                saveRecentEmoji(emoji);
+            }
+
+            // Save recent emojis
+            function saveRecentEmoji(emoji) {
+                let recent = JSON.parse(localStorage.getItem('recentEmojis') || '[]');
+                recent = recent.filter(e => e !== emoji);
+                recent.unshift(emoji);
+                recent = recent.slice(0, 8); // Keep only 8 recent
+                localStorage.setItem('recentEmojis', JSON.stringify(recent));
+                updateRecentEmojis();
+            }
+
+            // Update recent emojis display
+            function updateRecentEmojis() {
+                const recent = JSON.parse(localStorage.getItem('recentEmojis') || '[]');
+                const recentGrid = document.querySelector('#recent .emoji-grid');
+                if (recentGrid && recent.length > 0) {
+                    recentGrid.innerHTML = recent.map(emoji => 
+                        `<span onclick="insertEmoji('${emoji}')">${emoji}</span>`
+                    ).join('');
+                }
+            }
+
+            // Add click handlers to emoji grid items
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM loaded, setting up chat input');
+                const chatInput = document.getElementById('chat-input');
+                if (chatInput) {
+                    chatInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            handleSendMessage();
+                        }
+                    });
+                }
+
+                // Remove existing click handlers to prevent duplication
+                const emojiGrids = document.querySelectorAll('.emoji-grid');
+                emojiGrids.forEach(grid => {
+                    // Clone the grid to remove all event listeners
+                    const newGrid = grid.cloneNode(true);
+                    grid.parentNode.replaceChild(newGrid, grid);
+                    
+                    // Add single click handler
+                    newGrid.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'SPAN') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            insertEmoji(e.target.textContent);
+                        }
+                    });
+                });
+
+                // Load recent emojis
+                updateRecentEmojis();
+            });
+
+            // Simple inline function for sending messages
+            async function handleSendMessage() {
+                console.log('handleSendMessage called');
+                const input = document.getElementById('chat-input');
+                console.log('Input found:', input);
+                
+                if (!input) {
+                    console.error('Chat input not found');
+                    return;
+                }
+                
+                const text = input.value.trim();
+                console.log('Text to send:', text);
+                
+                if (!text) {
+                    console.log('No text, returning');
+                    return;
+                }
+                
+                // Find messages container
+                const messagesContainer = document.getElementById('chat-messages');
+                console.log('Messages container found:', messagesContainer);
+                
+                if (!messagesContainer) {
+                    console.error('Messages container not found');
+                    return;
+                }
+                
+                // Create and add message
+                const msg = document.createElement('div');
+                msg.className = 'new-message self';
+                msg.innerHTML = `
+                    <div class="new-message-bubble">
+                        ${text}
+                        <span class="new-message-time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                `;
+                
+                console.log('Adding message to container');
+                messagesContainer.appendChild(msg);
+                
+                // Clear input
+                input.value = '';
+                
+                // Scroll to bottom
+                console.log('Scrolling to bottom');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                console.log('Message added successfully');
+            }
+        </script>
 
         <main id="profile-screen" class="hidden">
             <div class="screen-header">
@@ -186,6 +514,8 @@
             </div>
         </main>
 
+        <div id="modal-container" class="hidden"></div>
+
         <div id="game-container" class="hidden">
             <button id="back-btn" onclick="showLobby()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
@@ -193,6 +523,9 @@
             </button>
             <div id="game-canvas"></div>
         </div>
+
+        <audio id="remote-audio-container" style="display:none"></audio>
+    </div>
     </div>
 
     <!-- Firebase SDK -->
@@ -213,18 +546,36 @@
         window.closeGameOverModal = appModule.closeGameOverModal;
         window.handleColorClick = appModule.handleColorClick;
         window.handleMathClick = appModule.handleMathClick;
+        window.openRoomSettings = appModule.openRoomSettings;
+        window.updateRoomSettings = appModule.updateRoomSettings;
+        window.deleteRoom = appModule.deleteRoom;
+        window.setVolume = appModule.setVolume;
         
         // Инициализация первой вкладки после загрузки модуля
         setTimeout(() => {
             if (window.switchTab) window.switchTab('games');
         }, 100);
+
+        // Обновим обработчик PeerJS в app.js для корректной работы
+        window.handleVoiceStream = (userId, stream) => {
+            const audio = document.createElement('audio');
+            audio.srcObject = stream;
+            audio.play();
+            document.body.append(audio);
+        };
     </script>
-    <nav class="tab-bar">
+        <nav class="tab-bar">
             <div class="tab-item active" onclick="switchTab('games')">
                 <div class="tab-icon-svg">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 12h4"></path><path d="M8 10v4"></path><path d="M15 13h.01"></path><path d="M18 11h.01"></path></svg>
                 </div>
                 <span class="tab-label">Игры</span>
+            </div>
+            <div class="tab-item" onclick="switchTab('rooms')">
+                <div class="tab-icon-svg">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <span class="tab-label">Комнаты</span>
             </div>
             <div class="tab-item" onclick="switchTab('leaderboard')">
                 <div class="tab-icon-svg">
