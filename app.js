@@ -50,6 +50,8 @@ const roomActiveViewEl = document.getElementById('room-active-view');
 const roomWelcomeViewEl = document.getElementById('room-welcome-view');
 const chatMessagesEl = document.getElementById('chat-messages');
 const voiceMembersEl = document.getElementById('voice-members-list');
+// Fix for new design - also get new messages container
+const newMessagesEl = document.getElementById('chat-messages');
 const modalContainerEl = document.getElementById('modal-container');
 const gameContainerEl = document.getElementById('game-container');
 
@@ -216,12 +218,6 @@ export const startGame = (gameId) => {
     // Запуск конкретной игры с поиском противника
     if (gameId === 'tictactoe') {
         initTicTacToe();
-    } else if (gameId === 'emojiduel') {
-        initEmojiDuel();
-    } else if (gameId === 'colorcatch') {
-        initColorCatch();
-    } else if (gameId === 'mathbattle') {
-        initMathBattle();
     }
 };
 
@@ -459,9 +455,6 @@ function showGameOverModal(winner) {
 
 function getGamePath(gameId) {
     if (gameId === 'tictactoe') return 'tictactoe';
-    if (gameId === 'emojiduel') return 'emojiduel';
-    if (gameId === 'colorcatch') return 'colorcatch';
-    if (gameId === 'mathbattle') return 'mathbattle';
     return null;
 }
 
@@ -655,17 +648,11 @@ function leaveMatch() {
     if (currentMatchId) {
         let path = '';
         if (currentGameId === 'tictactoe') path = 'tictactoe';
-        else if (currentGameId === 'emojiduel') path = 'emojiduel';
-        else if (currentGameId === 'colorcatch') path = 'colorcatch';
-        else if (currentGameId === 'mathbattle') path = 'mathbattle';
         
         if (path) remove(ref(db, `${path}/matches/${currentMatchId}`));
         currentMatchId = null;
     }
     remove(ref(db, 'tictactoe/waiting/' + currentUser.id));
-    remove(ref(db, 'emojiduel/waiting/' + currentUser.id));
-    remove(ref(db, 'colorcatch/waiting/' + currentUser.id));
-    remove(ref(db, 'mathbattle/waiting/' + currentUser.id));
 }
 
 export const switchTab = (tabId) => {
@@ -716,6 +703,85 @@ export const switchTab = (tabId) => {
 
 // --- Discord Rooms Logic ---
 
+export const openRoomSettings = async () => {
+    if (!currentDiscordRoomId) return;
+    
+    const roomRef = ref(db, `rooms/${currentDiscordRoomId}`);
+    const snap = await get(roomRef);
+    const room = snap.val();
+    const isOwner = room.owner === currentUser.id;
+    
+    modalContainerEl.classList.remove('hidden');
+    modalContainerEl.innerHTML = `
+        <div class="modal-card">
+            <h2 class="modal-title">Настройки пространства</h2>
+            
+            <div class="settings-section">
+                <span class="settings-label">Громкость голоса</span>
+                <input type="range" class="volume-slider" min="0" max="1" step="0.1" value="${localStorage.getItem('voice_volume') || 1}" oninput="setVolume(this.value)">
+            </div>
+            
+            ${isOwner ? `
+            <div class="settings-section">
+                <span class="settings-label">Название</span>
+                <input type="text" id="edit-room-name" class="modal-input" value="${room.name}" maxlength="15">
+            </div>
+            <div class="settings-section">
+                <span class="settings-label">PIN-код</span>
+                <input type="tel" id="edit-room-pin" class="modal-input" value="${room.pin || ''}" maxlength="4" placeholder="Нет PIN-кода">
+            </div>
+            ` : ''}
+            
+            <div class="modal-btns">
+                <button class="modal-btn secondary" onclick="closeModal()">Закрыть</button>
+                ${isOwner ? `
+                    <button class="modal-btn primary" onclick="updateRoomSettings()">Сохранить</button>
+                ` : ''}
+            </div>
+            
+            ${isOwner ? `
+                <button class="modal-btn danger" style="margin-top: 12px; width: 100%;" onclick="deleteRoom()">Удалить пространство</button>
+            ` : ''}
+        </div>
+    `;
+};
+
+export const setVolume = (val) => {
+    localStorage.setItem('voice_volume', val);
+    const audios = document.querySelectorAll('#remote-audio-container audio');
+    audios.forEach(audio => {
+        audio.volume = val;
+    });
+};
+
+export const updateRoomSettings = async () => {
+    const newName = document.getElementById('edit-room-name').value.trim();
+    const newPin = document.getElementById('edit-room-pin').value.trim();
+    
+    if (!newName) return;
+    
+    const roomRef = ref(db, `rooms/${currentDiscordRoomId}`);
+    await update(roomRef, {
+        name: newName,
+        pin: newPin || null
+    });
+    
+    document.getElementById('active-room-name').innerText = newName;
+    closeModal();
+    safeHaptic('success');
+};
+
+export const deleteRoom = async () => {
+    if (!confirm('Вы уверены, что хотите удалить это пространство?')) return;
+    
+    const roomRef = ref(db, `rooms/${currentDiscordRoomId}`);
+    await remove(roomRef);
+    
+    closeModal();
+    leaveDiscordRoom();
+    safeHaptic('warning');
+};
+
 function loadDiscordRooms() {
     const roomsRef = ref(db, 'rooms');
     onValue(roomsRef, (snapshot) => {
@@ -729,27 +795,30 @@ function loadDiscordRooms() {
 }
 
 function renderDiscordSidebar(rooms) {
-    if (!serverListEl) return;
-    serverListEl.innerHTML = rooms.map(room => `
-        <div class="server-icon ${currentDiscordRoomId === room.id ? 'active' : ''}" 
-             onclick="joinDiscordRoom('${room.id}')" 
-             title="${room.name}">
-            ${room.name.charAt(0).toUpperCase()}
-        </div>
-    `).join('');
+    // Эта функция больше не нужна, так как мы удалили сайдбар
 }
 
 function renderDiscordFeed(rooms) {
     if (!roomsFeedEl) return;
     if (rooms.length === 0) {
-        roomsFeedEl.innerHTML = '<p style="text-align:center; color:var(--hint-color);">Нет активных комнат. Создайте первую!</p>';
+        roomsFeedEl.innerHTML = `
+            <div style="text-align:center; padding: 40px; background: rgba(255,255,255,0.02); border-radius: 20px; border: 1px dashed rgba(255,255,255,0.1);">
+                <p style="color:var(--hint-color); font-size: 14px;">Пока пусто. Создайте пространство!</p>
+            </div>`;
         return;
     }
     roomsFeedEl.innerHTML = rooms.map(room => `
-        <div class="room-card-discord" onclick="joinDiscordRoom('${room.id}')">
-            <div style="font-weight:800; font-size:16px;"># ${room.name}</div>
-            <div style="font-size:12px; color:var(--hint-color); margin-top:4px;">
-                ${Object.keys(room.players || {}).length} участников • ${room.pin ? '🔒 Приватная' : '🔓 Открытая'}
+        <div class="room-glass-card" onclick="joinDiscordRoom('${room.id}')">
+            <h4>${room.name}</h4>
+            <div class="room-glass-info">
+                <div class="room-glass-meta">
+                    <span class="meta-item live">LIVE</span>
+                    <span class="meta-item">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                        ${Object.keys(room.players || {}).length}
+                    </span>
+                    ${room.pin ? '<span class="meta-item">🔒</span>' : ''}
+                </div>
             </div>
         </div>
     `).join('');
@@ -760,19 +829,33 @@ export const joinDiscordRoom = async (roomId) => {
     const snap = await get(roomRef);
     const room = snap.val();
 
+    if (!room) {
+        alert('Пространство не найдено или было удалено');
+        return;
+    }
+
     if (room.pin) {
-        const pin = prompt('Введите PIN-код:');
+        const pin = prompt('Введите PIN-код для входа:');
         if (pin !== room.pin) {
-            alert('Неверный код!');
+            alert('Неверный код доступа!');
             return;
         }
     }
 
     currentDiscordRoomId = roomId;
-    
+
+    // Прячем ленту комнат и показываем активную комнату
+    roomWelcomeViewEl.classList.add('hidden');
+    roomActiveViewEl.classList.remove('hidden');
+    document.getElementById('active-room-name').innerText = room.name;
+
+    // Скрываем таб-бар в активной комнате
+    const tabBar = document.querySelector('.tab-bar');
+    if (tabBar) tabBar.style.display = 'none';
+
     initVoiceCommunication(roomId);
-    
-    // Add to players
+
+    // Добавляем игрока в Firebase комнаты
     const playerRef = ref(db, `rooms/${roomId}/players/${currentUser.id}`);
     await update(playerRef, {
         name: currentUser.name,
@@ -781,10 +864,6 @@ export const joinDiscordRoom = async (roomId) => {
     });
 
     onDisconnect(playerRef).remove();
-
-    roomWelcomeViewEl.classList.add('hidden');
-    roomActiveViewEl.classList.remove('hidden');
-    document.getElementById('active-room-name').innerText = room.name;
 
     listenToChat(roomId);
     listenToVoice(roomId);
@@ -802,33 +881,82 @@ function listenToChat(roomId) {
 }
 
 function renderMessages(msgs) {
-    if (!chatMessagesEl) return;
-    chatMessagesEl.innerHTML = msgs.map(m => `
-        <div class="message-item">
-            <div class="msg-avatar">${m.userName.charAt(0).toUpperCase()}</div>
-            <div class="msg-content">
-                <span class="msg-user">${m.userName}</span>
-                <span class="msg-text">${m.text}</span>
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+    messagesContainer.innerHTML = msgs.map(m => {
+        const isSelf = m.userId === currentUser.id;
+        const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+            <div class="new-message ${isSelf ? 'self' : 'other'}">
+                ${!isSelf ? `<span class="new-message-sender">${m.userName}</span>` : ''}
+                <div class="new-message-bubble">
+                    ${m.text}
+                    ${time ? `<span class="new-message-time">${time}</span>` : ''}
+                </div>
             </div>
-        </div>
-    `).join('');
-    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        `;
+    }).join('');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-export const sendChatMessage = async () => {
+// Make function global for onclick handlers
+window.sendChatMessage = async () => {
+    console.log('sendChatMessage called');
     const input = document.getElementById('chat-input');
+    console.log('Input element:', input);
+    
+    if (!input) {
+        console.error('Chat input not found');
+        return;
+    }
+    
     const text = input.value.trim();
-    if (!text || !currentDiscordRoomId) return;
+    console.log('Text:', text, 'Room ID:', currentDiscordRoomId, 'User:', currentUser);
+    
+    if (!text) {
+        console.log('No text, returning');
+        return;
+    }
+    
+    if (!currentDiscordRoomId) {
+        console.log('No room ID, showing test message');
+        // Show test message locally if no room
+        const messagesContainer = document.getElementById('chat-messages');
+        if (messagesContainer) {
+            const testMsg = document.createElement('div');
+            testMsg.className = 'new-message self';
+            testMsg.innerHTML = `
+                <div class="new-message-bubble">
+                    ${text}
+                    <span class="new-message-time">${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `;
+            messagesContainer.appendChild(testMsg);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            input.value = '';
+        }
+        return;
+    }
 
-    const chatRef = ref(db, `rooms/${currentDiscordRoomId}/messages`);
-    await push(chatRef, {
-        userId: currentUser.id,
-        userName: currentUser.name,
-        text: text,
-        timestamp: Date.now()
-    });
-    input.value = '';
+    try {
+        const chatRef = ref(db, `rooms/${currentDiscordRoomId}/messages`);
+        console.log('Chat ref:', chatRef);
+        
+        await push(chatRef, {
+            userId: currentUser.id,
+            userName: currentUser.name,
+            text: text,
+            timestamp: Date.now()
+        });
+        
+        console.log('Message sent successfully');
+        input.value = '';
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
 };
+
+// Old event listener removed - using inline function in HTML
 
 function listenToVoice(roomId) {
     const playersRef = ref(db, `rooms/${roomId}/players`);
@@ -843,14 +971,41 @@ function listenToVoice(roomId) {
 
 function renderVoiceMembers(members) {
     if (!voiceMembersEl) return;
-    voiceMembersEl.innerHTML = members.map(m => `
-        <div class="voice-member">
-            <div class="voice-avatar ${m.isVoice ? 'speaking' : ''}">
-                ${m.name.charAt(0).toUpperCase()}
+    
+    // Generate beautiful avatars with gradients and icons
+    const avatarStyles = [
+        { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: '👤' },
+        { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', icon: '🎭' },
+        { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', icon: '🎨' },
+        { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', icon: '🌟' },
+        { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', icon: '🎪' },
+        { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', icon: '🎯' }
+    ];
+    
+    voiceMembersEl.innerHTML = members.map((m, index) => {
+        const style = avatarStyles[index % avatarStyles.length];
+        const firstLetter = m.name.charAt(0).toUpperCase();
+        const isSpeaking = m.isVoice;
+        
+        return `
+            <div class="new-participant ${isSpeaking ? 'speaking' : ''}" title="${m.name}">
+                <div class="new-participant-avatar" style="background: ${style.bg}">
+                    ${firstLetter}
+                </div>
+                <span class="new-participant-name">${m.name}</span>
             </div>
-            <span class="voice-name">${m.name}</span>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+    
+    // Add speaking animation dynamically
+    members.forEach((m, index) => {
+        if (m.isVoice) {
+            const participantEl = voiceMembersEl.children[index];
+            if (participantEl) {
+                participantEl.classList.add('speaking');
+            }
+        }
+    });
 }
 
 // --- Real-time Voice (WebRTC) Logic ---
@@ -866,75 +1021,111 @@ function initVoiceCommunication(roomId) {
         return;
     }
     
-    myPeer = new Peer(currentUser.id, {
-        host: location.hostname,
-        port: location.port || (location.protocol === 'https:' ? 443 : 80),
-        path: '/peerjs'
-    });
+    // Пересоздаем Peer если он был закрыт
+    if (!myPeer || myPeer.destroyed) {
+        myPeer = new Peer(currentUser.id, {
+            host: location.hostname,
+            port: location.port || (location.protocol === 'https:' ? 443 : 80),
+            path: '/peerjs',
+            secure: location.protocol === 'https:'
+        });
+    }
 
     myPeer.on('open', id => {
         socket.emit('join-room', roomId, id);
     });
 
     myPeer.on('call', call => {
-        if (isVoiceActive) {
-            call.answer(myStream);
-            const audio = document.createElement('audio');
-            call.on('stream', userAudioStream => {
-                addAudioStream(audio, userAudioStream);
-            });
-        }
+        console.log('Incoming call from:', call.peer);
+        call.answer(myStream); // Отвечаем своим стримом (даже если он пустой/muted)
+        
+        const audio = document.createElement('audio');
+        audio.id = `audio-${call.peer}`;
+        call.on('stream', userAudioStream => {
+            console.log('Received stream from:', call.peer);
+            addAudioStream(audio, userAudioStream);
+        });
+        
+        call.on('close', () => {
+            audio.remove();
+        });
+        
+        peers[call.peer] = call;
     });
 
     socket.on('user-connected', userId => {
-        if (isVoiceActive) {
+        console.log('User connected to socket room:', userId);
+        if (myStream) {
             connectToNewUser(userId, myStream);
         }
     });
 
     socket.on('user-disconnected', userId => {
-        if (peers[userId]) peers[userId].close();
+        console.log('User disconnected:', userId);
+        if (peers[userId]) {
+            peers[userId].close();
+            delete peers[userId];
+        }
+        const audio = document.getElementById(`audio-${userId}`);
+        if (audio) audio.remove();
     });
 }
 
 function connectToNewUser(userId, stream) {
+    console.log('Calling user:', userId);
     const call = myPeer.call(userId, stream);
     const audio = document.createElement('audio');
+    audio.id = `audio-${userId}`;
+    
     call.on('stream', userAudioStream => {
+        console.log('Received stream from called user:', userId);
         addAudioStream(audio, userAudioStream);
     });
+    
     call.on('close', () => {
         audio.remove();
     });
+    
     peers[userId] = call;
 }
 
 function addAudioStream(audio, stream) {
     audio.srcObject = stream;
-    audio.addEventListener('loadedmetadata', () => {
-        audio.play();
-    });
-    document.body.append(audio);
+    audio.autoplay = true;
+    audio.playsinline = true;
+    audio.volume = localStorage.getItem('voice_volume') || 1;
+    document.getElementById('remote-audio-container').append(audio);
 }
 
 export const toggleVoice = async () => {
     if (!currentDiscordRoomId) return;
     
     const btn = document.getElementById('voice-toggle-btn');
+    if (!btn) {
+        console.error('Voice toggle button not found');
+        return;
+    }
     
     if (!isVoiceActive) {
         try {
+            // Запрашиваем микрофон
             myStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
                 video: false
             });
+            
             isVoiceActive = true;
             btn.classList.add('active');
             
-            // Connect to everyone already in room
+            // Если мы уже в комнате, обзваниваем всех
             const playersRef = ref(db, `rooms/${currentDiscordRoomId}/players`);
             const snap = await get(playersRef);
             const players = snap.val();
+            
             if (players) {
                 Object.keys(players).forEach(userId => {
                     if (userId !== currentUser.id && players[userId].isVoice) {
@@ -942,24 +1133,37 @@ export const toggleVoice = async () => {
                     }
                 });
             }
+            
+            safeHaptic('success');
         } catch (err) {
             console.error('Failed to get local stream', err);
-            alert('Не удалось получить доступ к микрофону');
+            alert('Не удалось получить доступ к микрофону. Проверьте разрешения в браузере.');
             return;
         }
     } else {
+        // Выключаем микрофон
         isVoiceActive = false;
         btn.classList.remove('active');
+        
         if (myStream) {
             myStream.getTracks().forEach(track => track.stop());
+            myStream = null;
         }
-        Object.values(peers).forEach(peer => peer.close());
+        
+        // Закрываем все текущие звонки
+        Object.keys(peers).forEach(userId => {
+            peers[userId].close();
+            delete peers[userId];
+        });
+        
+        // Удаляем аудио-элементы
+        document.getElementById('remote-audio-container').innerHTML = '';
+        
+        safeHaptic('light');
     }
     
     const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
     await update(playerRef, { isVoice: isVoiceActive });
-    
-    safeHaptic('medium');
 };
 
 function cleanupVoice() {
@@ -983,6 +1187,11 @@ export const leaveDiscordRoom = () => {
     isVoiceActive = false;
     roomActiveViewEl.classList.add('hidden');
     roomWelcomeViewEl.classList.remove('hidden');
+
+    // Показываем таб-бар при выходе из комнаты
+    const tabBar = document.querySelector('.tab-bar');
+    if (tabBar) tabBar.style.display = 'flex';
+
     loadDiscordRooms();
 };
 
@@ -1537,4 +1746,5 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
+
 
