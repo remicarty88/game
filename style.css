@@ -183,7 +183,9 @@ main {
     color: #4ade80;
 }
 
-.new-leave-btn {
+.new-action-btn.muted {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.3);
     color: #f87171;
 }
 
@@ -2426,6 +2428,8 @@ header {
     overflow: visible;
     position: relative;
 }
+
+
 
 
 
