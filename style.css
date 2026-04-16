@@ -146,7 +146,7 @@ main {
     gap: 8px;
 }
 
-.new-icon-btn {
+.new-action-btn {
     width: 40px;
     height: 40px;
     border-radius: 12px;
@@ -157,17 +157,24 @@ main {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.new-icon-btn:hover {
+.new-action-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #fff;
-    transform: translateY(-1px);
+    transform: scale(1.05);
 }
 
-.new-icon-btn:active {
-    transform: translateY(0);
+.new-action-btn:active {
+    transform: scale(0.95);
+}
+
+.new-action-btn.active {
+    background: var(--tg-blue);
+    color: #fff;
+    border-color: var(--tg-blue);
+    box-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
 }
 
 .new-voice-btn.active {
@@ -366,6 +373,14 @@ main {
     max-width: 75% !important;
     animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: bottom;
+}
+
+.new-message-sender {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--tg-blue);
+    margin-left: 2px;
+    margin-bottom: 2px;
 }
 
 @keyframes slideInUp {
@@ -2411,5 +2426,6 @@ header {
     overflow: visible;
     position: relative;
 }
+
 
 
