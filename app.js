@@ -885,10 +885,22 @@ export const joinDiscordRoom = async (roomId) => {
 
 function listenToChat(roomId) {
     console.log('🔥 Starting to listen to chat for room:', roomId);
+    console.log('🔥 Firebase DB available:', !!db);
+    console.log('🔥 Full Firebase path:', `rooms/${roomId}/messages`);
+    
+    if (!db) {
+        console.error('🔥 Firebase not initialized - cannot listen to chat');
+        return;
+    }
+    
     const chatRef = ref(db, `rooms/${roomId}/messages`);
+    console.log('🔥 Chat reference created:', chatRef.toString());
     
     onValue(chatRef, (snapshot) => {
-        console.log('🔥 Chat snapshot received:', snapshot.exists());
+        console.log('🔥 Chat snapshot received!');
+        console.log('🔥 Snapshot exists:', snapshot.exists());
+        console.log('🔥 Snapshot size:', snapshot.size);
+        
         const msgs = [];
         snapshot.forEach(child => {
             const msg = child.val();
@@ -899,9 +911,11 @@ function listenToChat(roomId) {
         });
         
         console.log('🔥 Total messages to render:', msgs.length);
+        console.log('🔥 Messages data:', msgs);
         renderMessages(msgs);
     }, (error) => {
         console.error('🔥 Error listening to chat:', error);
+        console.error('🔥 Error details:', error.code, error.message);
     });
 }
 
@@ -948,7 +962,7 @@ function renderMessages(msgs) {
 }
 
 // Export functions for global access
-export { leaveRoom, toggleVoice, toggleMute };
+// All functions are available globally via window object
 
 // Make functions global for onclick handlers
 window.sendChatMessage = async () => {
@@ -991,7 +1005,20 @@ window.sendChatMessage = async () => {
     
     try {
         console.log('🔥 Sending message to Firebase...');
+        console.log('🔥 Firebase DB available:', !!db);
+        console.log('🔥 Current room ID:', currentDiscordRoomId);
+        console.log('🔥 Current user:', currentUser);
+        
+        if (!db) {
+            throw new Error('Firebase not initialized');
+        }
+        
+        if (!currentDiscordRoomId) {
+            throw new Error('No active room');
+        }
+        
         const chatRef = ref(db, `rooms/${currentDiscordRoomId}/messages`);
+        console.log('🔥 Chat reference:', chatRef.toString());
         
         const messageData = {
             userId: currentUser.id,
@@ -1000,18 +1027,25 @@ window.sendChatMessage = async () => {
             timestamp: Date.now()
         };
         
-        console.log('🔥 Message data:', messageData);
+        console.log('🔥 Message data prepared:', messageData);
         console.log('🔥 Firebase path:', `rooms/${currentDiscordRoomId}/messages`);
         
         const result = await push(chatRef, messageData);
-        console.log('🔥 Message pushed to Firebase with key:', result.key);
+        console.log('🔥 Message pushed to Firebase successfully!');
+        console.log('🔥 New message key:', result.key);
         
         input.value = '';
-        console.log('🔥 Message sent successfully to Firebase');
+        console.log('🔥 Input cleared');
+        
+        // Test immediate read-back
+        console.log('🔥 Testing immediate read-back...');
+        const testRead = await get(chatRef);
+        console.log('🔥 Read-back test - messages count:', testRead.size);
         
     } catch (error) {
         console.error('🔥 Error sending to Firebase:', error);
-        alert('Ошибка отправки сообщения. Проверьте подключение к интернету.');
+        console.error('🔥 Error stack:', error.stack);
+        alert('Ошибка отправки сообщения: ' + error.message);
     }
 };
 
@@ -1044,6 +1078,12 @@ window.setVolume = (volume) => {
         audio.volume = volume;
     });
 };
+
+// Make toggleVoice globally available
+// window.toggleVoice will be set after function definition
+
+// Make switchTab globally available
+window.switchTab = switchTab;
 
 window.leaveRoom = () => {
     console.log('🔥 Leaving room:', currentDiscordRoomId);
@@ -1085,17 +1125,85 @@ window.testFirebase = () => {
     console.log('🔥 Current user:', currentUser);
     console.log('🔥 Current room ID:', currentDiscordRoomId);
     
+    if (!db) {
+        console.error('🔥 Firebase not initialized!');
+        alert('Firebase не инициализирован. Проверьте подключение к интернету.');
+        return;
+    }
+    
     if (currentDiscordRoomId) {
-        const testRef = ref(db, `rooms/${currentDiscordRoomId}/test`);
+        console.log('🔥 Testing chat functionality...');
+        const chatRef = ref(db, `rooms/${currentDiscordRoomId}/messages`);
+        
+        // Test write
+        const testMessage = {
+            userId: currentUser.id,
+            userName: currentUser.name || 'Test User',
+            text: 'Test message - ' + new Date().toLocaleTimeString(),
+            timestamp: Date.now()
+        };
+        
+        push(chatRef, testMessage).then((result) => {
+            console.log('🔥 Test message sent with key:', result.key);
+            
+            // Test read
+            setTimeout(() => {
+                get(chatRef).then((snapshot) => {
+                    console.log('🔥 Chat read test - messages count:', snapshot.size);
+                    snapshot.forEach(child => {
+                        console.log('🔥 Message in chat:', child.val());
+                    });
+                });
+            }, 1000);
+            
+        }).catch(error => {
+            console.error('🔥 Chat test failed:', error);
+        });
+    } else {
+        console.log('🔥 No room ID - testing basic connection');
+        const testRef = ref(db, 'test');
         set(testRef, {
-            message: 'Test message',
-            timestamp: Date.now(),
-            userId: currentUser.id
+            message: 'Connection test',
+            timestamp: Date.now()
         }).then(() => {
-            console.log('🔥 Firebase write test successful');
+            console.log('🔥 Basic Firebase connection successful');
             remove(testRef);
         }).catch(error => {
-            console.error('🔥 Firebase write test failed:', error);
+            console.error('🔥 Basic Firebase test failed:', error);
+            alert('Ошибка подключения к Firebase: ' + error.message);
+        });
+    }
+};
+
+// Force refresh chat
+window.refreshChat = () => {
+    console.log('🔥 Force refreshing chat...');
+    if (currentDiscordRoomId) {
+        listenToChat(currentDiscordRoomId);
+    } else {
+        console.log('🔥 No room to refresh chat');
+    }
+};
+
+// Test voice chat functionality
+window.testVoice = () => {
+    console.log('🔥 Testing voice chat...');
+    console.log('🔥 PeerJS available:', typeof Peer !== 'undefined');
+    console.log('🔥 myPeer:', !!myPeer);
+    console.log('🔥 myStream:', !!myStream);
+    console.log('🔥 isVoiceActive:', isVoiceActive);
+    console.log('🔥 currentDiscordRoomId:', currentDiscordRoomId);
+    
+    if (myPeer) {
+        console.log('🔥 Peer ID:', myPeer.id);
+        console.log('🔥 Peer open:', myPeer.open);
+        console.log('🔥 Peer connections:', Object.keys(peers));
+    }
+    
+    if (myStream) {
+        console.log('🔥 Stream tracks:', myStream.getTracks().length);
+        myStream.getTracks().forEach(track => {
+            console.log('🔥 Track:', track.kind, track.label, track.enabled);
         });
     }
 };
@@ -1111,6 +1219,44 @@ window.leaveRoom = window.leaveRoom || (() => {
         if (tabBar) tabBar.style.display = '';
     }
 });
+
+// Ensure switchTab is available globally
+window.switchTab = window.switchTab || ((tabName) => {
+    console.log('🔥 Switching to tab:', tabName);
+    
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active from all tabs
+    document.querySelectorAll('.tab-item').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    const selectedContent = document.getElementById(tabName + '-tab');
+    if (selectedContent) {
+        selectedContent.classList.remove('hidden');
+    }
+    
+    // Add active to selected tab
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+});
+
+// Final fallback to ensure switchTab is always available
+if (!window.switchTab) {
+    window.switchTab = function(tabName) {
+        console.log('🔥 Fallback switchTab called:', tabName);
+        // Basic tab switching logic
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        const target = document.getElementById(tabName + '-tab');
+        if (target) target.classList.remove('hidden');
+    };
+}
 
 // Old event listener removed - using inline function in HTML
 
@@ -1182,22 +1328,57 @@ const audioElements = {};
 
 // Initialize PeerJS for P2P connections
 function initializePeer() {
+    console.log('🔥 Initializing PeerJS...');
+    console.log('🔥 Peer class available:', typeof Peer !== 'undefined');
+    
     if (typeof Peer === 'undefined') {
-        console.error('🔥 PeerJS not loaded');
+        console.error('🔥 PeerJS not loaded - checking CDN...');
+        // Try to load PeerJS from CDN if not available
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+        script.onload = () => {
+            console.log('🔥 PeerJS loaded from CDN');
+            // Retry initialization after script loads
+            setTimeout(() => {
+                myPeer = initializePeer();
+            }, 500);
+        };
+        script.onerror = () => {
+            console.error('🔥 Failed to load PeerJS from CDN');
+        };
+        document.head.appendChild(script);
         return null;
     }
     
     try {
-        myPeer = new Peer(currentUser.id, {
-            debug: 2
-        });
+        console.log('🔥 Creating peer with ID:', currentUser.id);
+        
+        // Use public PeerJS server if no server specified
+        const peerConfig = {
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
+        };
+        
+        myPeer = new Peer(currentUser.id, peerConfig);
         
         myPeer.on('open', (id) => {
             console.log('🔥 My peer ID is:', id);
+            console.log('🔥 Peer connection opened successfully');
         });
         
         myPeer.on('call', (call) => {
             console.log('🔥 Receiving call from:', call.peer);
+            
+            if (!myStream) {
+                console.warn('🔥 No local stream to answer call');
+                return;
+            }
+            
             call.answer(myStream);
             
             call.on('stream', (userAudioStream) => {
@@ -1210,16 +1391,33 @@ function initializePeer() {
                 removeAudioStream(call.peer);
             });
             
+            call.on('error', (error) => {
+                console.error('🔥 Call error:', error);
+            });
+            
             peers[call.peer] = call;
         });
         
         myPeer.on('error', (error) => {
             console.error('🔥 Peer error:', error);
+            console.error('🔥 Peer error type:', error.type);
+            console.error('🔥 Peer error details:', error);
         });
         
+        myPeer.on('disconnected', () => {
+            console.log('🔥 Peer disconnected');
+        });
+        
+        myPeer.on('close', () => {
+            console.log('🔥 Peer connection closed');
+        });
+        
+        console.log('🔥 Peer instance created successfully');
         return myPeer;
+        
     } catch (error) {
         console.error('🔥 Error initializing peer:', error);
+        console.error('🔥 Peer initialization error details:', error.message);
         return null;
     }
 }
@@ -1237,11 +1435,15 @@ function initVoiceCommunication(roomId) {
     // Listen for new users joining voice
     const playersRef = ref(db, `rooms/${roomId}/players`);
     onValue(playersRef, (snapshot) => {
+        // КРИТИЧЕСКИ ВАЖНО: Не звоним никому, пока у нас нет своего потока (микрофон выключен)
+        if (!isVoiceActive || !myStream) {
+            return;
+        }
+
         const players = snapshot.val() || {};
-        
         Object.keys(players).forEach(userId => {
             if (userId !== currentUser.id && players[userId].isVoice && !peers[userId]) {
-                console.log('🔥 Connecting to user:', userId);
+                console.log('🔥 New voice user detected, attempting to connect:', userId);
                 connectToNewUser(userId, myStream);
             }
         });
@@ -1249,13 +1451,49 @@ function initVoiceCommunication(roomId) {
 }
 
 function connectToNewUser(userId, stream) {
-    if (!myPeer || !stream) {
-        console.error('🔥 Cannot connect - peer or stream not available');
+    console.log('🔥 connectToNewUser called with:', { userId, stream: !!stream, myPeer: !!myPeer });
+    
+    if (!myPeer) {
+        console.error('🔥 Cannot connect - myPeer is null');
+        console.log('🔥 Attempting to initialize peer...');
+        myPeer = initializePeer();
+        if (!myPeer) {
+            console.error('🔥 Failed to initialize peer');
+            return;
+        }
+        
+        // Wait a bit for peer to initialize
+        setTimeout(() => {
+            if (myPeer && myPeer.open) {
+                console.log('🔥 Peer initialized, retrying connection to:', userId);
+                connectToNewUser(userId, stream);
+            }
+        }, 1000);
+        return;
+    }
+    
+    if (!stream) {
+        console.error('🔥 Cannot connect - stream is null');
+        return;
+    }
+    
+    if (!myPeer.open) {
+        console.error('🔥 Cannot connect - peer is not open yet');
+        // Wait for peer to open and retry
+        myPeer.on('open', () => {
+            console.log('🔥 Peer opened, connecting to user:', userId);
+            connectToNewUser(userId, stream);
+        });
         return;
     }
     
     console.log('🔥 Calling user:', userId);
     const call = myPeer.call(userId, stream);
+    
+    if (!call) {
+        console.error('🔥 Failed to create call to user:', userId);
+        return;
+    }
     
     call.on('stream', (userAudioStream) => {
         console.log('🔥 Received stream from user:', userId);
@@ -1267,7 +1505,12 @@ function connectToNewUser(userId, stream) {
         removeAudioStream(userId);
     });
     
+    call.on('error', (error) => {
+        console.error('🔥 Call error with user:', userId, error);
+    });
+    
     peers[userId] = call;
+    console.log('🔥 Call established with user:', userId);
 }
 
 function addAudioStream(userId, stream) {
@@ -1444,16 +1687,8 @@ export const toggleVoice = async () => {
     await update(playerRef, { isVoice: isVoiceActive });
 };
 
-function cleanupVoice() {
-    if (myStream) {
-        myStream.getTracks().forEach(track => track.stop());
-    }
-    if (myPeer) {
-        myPeer.destroy();
-    }
-    Object.values(peers).forEach(peer => peer.close());
-    if (socket) socket.disconnect();
-}
+// Make toggleVoice globally available after definition
+window.toggleVoice = toggleVoice;
 
 
 export const leaveDiscordRoom = () => {
@@ -2024,6 +2259,7 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
+
 
 
 
