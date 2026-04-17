@@ -1353,7 +1353,7 @@ function initializePeer() {
     try {
         console.log('🔥 Creating peer with ID:', currentUser.id);
         
-        // Use public PeerJS server if no server specified
+        // Use Railway PeerJS server
         const peerConfig = {
             debug: 2,
             config: {
@@ -1363,6 +1363,14 @@ function initializePeer() {
                 ]
             }
         };
+        
+        // Use Railway server
+        peerConfig.host = 'game-production-7a4e.up.railway.app';
+        peerConfig.port = 8080;
+        peerConfig.path = '/peerjs';
+        peerConfig.secure = true; // HTTPS
+        
+        console.log('🔥 Using Railway PeerJS server: https://game-production-7a4e.up.railway.app:8080');
         
         myPeer = new Peer(currentUser.id, peerConfig);
         
@@ -1402,10 +1410,27 @@ function initializePeer() {
             console.error('🔥 Peer error:', error);
             console.error('🔥 Peer error type:', error.type);
             console.error('🔥 Peer error details:', error);
+            
+            // If network error, try to reconnect
+            if (error.type === 'network' || error.type === 'server-error') {
+                console.log('🔥 Network error detected, will retry connection...');
+                setTimeout(() => {
+                    console.log('🔥 Retrying PeerJS connection...');
+                    if (myPeer) {
+                        myPeer.destroy();
+                    }
+                    myPeer = initializePeer();
+                }, 3000);
+            }
         });
         
         myPeer.on('disconnected', () => {
-            console.log('🔥 Peer disconnected');
+            console.log('🔥 Peer disconnected, attempting to reconnect...');
+            setTimeout(() => {
+                if (myPeer && !myPeer.destroyed) {
+                    myPeer.reconnect();
+                }
+            }, 2000);
         });
         
         myPeer.on('close', () => {
