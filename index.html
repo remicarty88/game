@@ -467,11 +467,33 @@
             // Simple inline function for sending messages
             // Используем функцию из app.js для отправки сообщений в Firebase
             function handleSendMessage() {
+                console.log('🔥 handleSendMessage called');
+                
                 if (typeof window.sendChatMessage === 'function') {
+                    console.log('🔥 Calling window.sendChatMessage');
                     window.sendChatMessage();
-                } else {
-                    console.error('window.sendChatMessage is not defined yet');
+                    return;
                 }
+                
+                console.error('🔥 window.sendChatMessage is not defined yet');
+                
+                // Fallback: wait and retry
+                let attempts = 0;
+                const maxAttempts = 5;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    console.log(`🔥 Attempt ${attempts}/${maxAttempts} to find sendChatMessage`);
+                    
+                    if (typeof window.sendChatMessage === 'function') {
+                        console.log('🔥 Found sendChatMessage, calling it');
+                        clearInterval(checkInterval);
+                        window.sendChatMessage();
+                    } else if (attempts >= maxAttempts) {
+                        console.error('🔥 Could not find sendChatMessage after retries');
+                        clearInterval(checkInterval);
+                        alert('Не удалось отправить сообщение. Пожалуйста, перезагрузите страницу.');
+                    }
+                }, 500);
             }
         </script>
 
