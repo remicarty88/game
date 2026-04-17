@@ -848,7 +848,8 @@ export const joinDiscordRoom = async (roomId) => {
     }
 
     currentDiscordRoomId = roomId;
-    console.log('🔥 Set currentDiscordRoomId to:', currentDiscordRoomId);
+    localStorage.setItem('currentDiscordRoomId', roomId);
+    console.log('🔥 Set currentDiscordRoomId to:', roomId);
 
     // Прячем ленту комнат и показываем активную комнату
     roomWelcomeViewEl.classList.add('hidden');
@@ -1463,15 +1464,69 @@ function initVoiceCommunication(roomId) {
         const players = snapshot.val() || {};
         Object.keys(players).forEach(userId => {
             if (userId !== currentUser.id && players[userId].isVoice && !peers[userId]) {
-                console.log('🔥 New voice user detected, attempting to connect:', userId);
-                connectToNewUser(userId, myStream);
+                const peerId = players[userId].peerId;
+                console.log('🔥 New voice user detected:', userId, 'Peer ID:', peerId);
+                
+                if (peerId) {
+                    console.log('🔥 Connecting to user via peer ID:', peerId);
+                    connectToNewUserByPeerId(peerId, myStream);
+                } else {
+                    console.warn('🔥 User has voice enabled but no peer ID:', userId);
+                }
             }
         });
     });
 }
 
+function connectToNewUserByPeerId(peerId, stream) {
+    console.log('🔥 connectToNewUserByPeerId called with:', { peerId, stream: !!stream, myPeer: !!myPeer });
+    
+    if (!myPeer) {
+        console.error('🔥 Cannot connect - myPeer is null');
+        return;
+    }
+    
+    if (!stream) {
+        console.error('🔥 Cannot connect - stream is null');
+        return;
+    }
+    
+    if (!myPeer.open) {
+        console.error('🔥 Cannot connect - peer is not open yet');
+        return;
+    }
+    
+    console.log('🔥 Calling user by peer ID:', peerId);
+    const call = myPeer.call(peerId, stream);
+    
+    if (!call) {
+        console.error('🔥 Failed to create call to peer ID:', peerId);
+        return;
+    }
+    
+    call.on('stream', (userAudioStream) => {
+        console.log('🔥 Received stream from peer ID:', peerId);
+        addAudioStream(peerId, userAudioStream);
+    });
+    
+    call.on('close', () => {
+        console.log('🔥 Call with peer ID closed:', peerId);
+        removeAudioStream(peerId);
+    });
+    
+    call.on('error', (error) => {
+        console.error('🔥 Call error with peer ID:', peerId, error);
+        console.error('🔥 Call error type:', error.type);
+        console.error('🔥 Call error details:', error.message);
+    });
+    
+    peers[peerId] = call;
+    console.log('🔥 Call established with peer ID:', peerId);
+}
+
 function connectToNewUser(userId, stream) {
     console.log('🔥 connectToNewUser called with:', { userId, stream: !!stream, myPeer: !!myPeer });
+    console.log('🔥 Peer status:', myPeer ? { id: myPeer.id, open: myPeer.open, disconnected: myPeer.disconnected, destroyed: myPeer.destroyed } : 'null');
     
     if (!myPeer) {
         console.error('🔥 Cannot connect - myPeer is null');
@@ -1499,6 +1554,7 @@ function connectToNewUser(userId, stream) {
     
     if (!myPeer.open) {
         console.error('🔥 Cannot connect - peer is not open yet');
+        console.log('🔥 Waiting for peer to open...');
         // Wait for peer to open and retry
         myPeer.on('open', () => {
             console.log('🔥 Peer opened, connecting to user:', userId);
@@ -1527,6 +1583,8 @@ function connectToNewUser(userId, stream) {
     
     call.on('error', (error) => {
         console.error('🔥 Call error with user:', userId, error);
+        console.error('🔥 Call error type:', error.type);
+        console.error('🔥 Call error details:', error.message);
     });
     
     peers[userId] = call;
@@ -1704,7 +1762,15 @@ export const toggleVoice = async () => {
     }
     
     const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
-    await update(playerRef, { isVoice: isVoiceActive });
+    
+    // Update with voice status and peer ID
+    const updateData = { isVoice: isVoiceActive };
+    if (isVoiceActive && myPeer && myPeer.id) {
+        updateData.peerId = myPeer.id;
+        console.log('🔥 Saving peer ID to Firebase:', myPeer.id);
+    }
+    
+    await update(playerRef, updateData);
 };
 
 // Make toggleVoice globally available after definition
@@ -2279,7 +2345,5 @@ function initOnlineCounter() {
 
 // Конец файла
 // Удалены дублирующие вызовы, они теперь в DOMContentLoaded
-
-
 
 
