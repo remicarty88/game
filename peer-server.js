@@ -1,4 +1,4 @@
-const { ExpressPeerServer } = require('express-peerjs');
+const { PeerServer } = require('peerjs');
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -7,17 +7,22 @@ const app = express();
 const server = http.createServer(app);
 
 // PeerJS server configuration
-const peerServer = ExpressPeerServer(server, {
-    debug: true,
-    path: '/peerjs',
-    allow_discovery: true
+const peerServer = PeerServer({ 
+    port: process.env.PORT || 3001,
+    path: '/peerjs'
+});
+
+// Attach PeerServer to Express app
+peerServer.on('connection', (id) => {
+    console.log('🔥 Peer connected:', id);
+});
+
+peerServer.on('disconnect', (id) => {
+    console.log('🔥 Peer disconnected:', id);
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
-
-// Use PeerJS server
-app.use('/peerjs', peerServer);
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
@@ -36,4 +41,3 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🔥 WebSocket server ready for voice chat`);
     console.log(`🔥 Access at: http://0.0.0.0:${PORT}`);
 });
-
