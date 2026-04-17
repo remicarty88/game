@@ -1,4 +1,11 @@
 {
+  "name": "88-games",
+  "version": "1.0.0",
+  "description": "Premium Mini Games for Telegram",
+  "main": "peer-server.js",
+  "scripts": {
+    "start": "node peer-server.js"
+  },
   "dependencies": {
     "express": "^4.18.2",
     "peerjs": "^1.5.2"
