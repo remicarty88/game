@@ -1353,7 +1353,7 @@ function initializePeer() {
     try {
         console.log('🔥 Creating peer with ID:', currentUser.id);
         
-        // Use Railway PeerJS server
+        // Use public PeerJS cloud server (NO custom server)
         const peerConfig = {
             debug: 2,
             config: {
@@ -1364,13 +1364,8 @@ function initializePeer() {
             }
         };
         
-        // Use Railway server
-        peerConfig.host = 'game-production-7a4e.up.railway.app';
-        peerConfig.port = 8080;
-        peerConfig.path = '/peerjs';
-        peerConfig.secure = true; // HTTPS
-        
-        console.log('🔥 Using Railway PeerJS server: https://game-production-7a4e.up.railway.app:8080');
+        // Explicitly NOT using any custom server - using public PeerJS cloud
+        console.log('🔥 Using public PeerJS cloud server (NO custom server)');
         
         myPeer = new Peer(currentUser.id, peerConfig);
         
