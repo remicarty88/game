@@ -8,15 +8,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Socket.io будет загружаться только если доступен -->
-    <script>
-        // Попытка загрузить Socket.io
-        const script = document.createElement('script');
-        script.src = '/socket.io/socket.io.js';
-        script.onload = () => console.log('Socket.io loaded successfully');
-        script.onerror = () => console.log('Socket.io not available - Voice chat disabled');
-        document.head.appendChild(script);
-    </script>
 </head>
 <body>
     <div id="app">
