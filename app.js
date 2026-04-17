@@ -1327,468 +1327,268 @@ let myStream;
 const peers = {};
 const audioElements = {};
 
-// Initialize PeerJS for P2P connections
-function initializePeer() {
-    console.log('🔥 Initializing PeerJS...');
-    console.log('🔥 Peer class available:', typeof Peer !== 'undefined');
-    
-    if (typeof Peer === 'undefined') {
-        console.error('🔥 PeerJS not loaded - checking CDN...');
-        // Try to load PeerJS from CDN if not available
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
-        script.onload = () => {
-            console.log('🔥 PeerJS loaded from CDN');
-            // Retry initialization after script loads
-            setTimeout(() => {
-                myPeer = initializePeer();
-            }, 500);
-        };
-        script.onerror = () => {
-            console.error('🔥 Failed to load PeerJS from CDN');
-        };
-        document.head.appendChild(script);
-        return null;
-    }
+// WebRTC Voice Chat Implementation (Pure WebRTC without PeerJS)
+let localStream = null;
+let peerConnections = {};
+const iceServers = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+    ]
+};
+
+// Initialize voice communication
+async function initVoiceCommunication(roomId) {
+    console.log('🔥 Initializing WebRTC voice communication for room:', roomId);
     
     try {
-        console.log('🔥 Creating peer with ID:', currentUser.id);
+        // Get user media
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        console.log('🔥 Got local audio stream');
         
-        // Use Railway PeerJS server
-        const peerConfig = {
-            debug: 2,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            }
-        };
-        
-        // Use Railway server
-        peerConfig.host = 'game-production-7a4e.up.railway.app';
-        peerConfig.port = 8080;
-        peerConfig.path = '/peerjs';
-        peerConfig.secure = true; // HTTPS
-        
-        console.log('🔥 Using Railway PeerJS server: https://game-production-7a4e.up.railway.app:8080/peerjs');
-        
-        myPeer = new Peer(currentUser.id, peerConfig);
-        
-        myPeer.on('open', (id) => {
-            console.log('🔥 My peer ID is:', id);
-            console.log('🔥 Peer connection opened successfully');
-        });
-        
-        myPeer.on('call', (call) => {
-            console.log('🔥 Receiving call from:', call.peer);
-            
-            if (!myStream) {
-                console.warn('🔥 No local stream to answer call');
-                return;
-            }
-            
-            call.answer(myStream);
-            
-            call.on('stream', (userAudioStream) => {
-                console.log('🔥 Received stream from:', call.peer);
-                addAudioStream(call.peer, userAudioStream);
-            });
-            
-            call.on('close', () => {
-                console.log('🔥 Call closed with:', call.peer);
-                removeAudioStream(call.peer);
-            });
-            
-            call.on('error', (error) => {
-                console.error('🔥 Call error:', error);
-            });
-            
-            peers[call.peer] = call;
-        });
-        
-        myPeer.on('error', (error) => {
-            console.error('🔥 Peer error:', error);
-            console.error('🔥 Peer error type:', error.type);
-            console.error('🔥 Peer error details:', error);
-            
-            // If network error, try to reconnect
-            if (error.type === 'network' || error.type === 'server-error') {
-                console.log('🔥 Network error detected, will retry connection...');
-                setTimeout(() => {
-                    console.log('🔥 Retrying PeerJS connection...');
-                    if (myPeer) {
-                        myPeer.destroy();
-                    }
-                    myPeer = initializePeer();
-                }, 3000);
-            }
-        });
-        
-        myPeer.on('disconnected', () => {
-            console.log('🔥 Peer disconnected, attempting to reconnect...');
-            setTimeout(() => {
-                if (myPeer && !myPeer.destroyed) {
-                    myPeer.reconnect();
+        // Listen for signaling messages
+        const signalsRef = ref(db, `rooms/${roomId}/signals`);
+        onValue(signalsRef, (snapshot) => {
+            const signals = snapshot.val() || {};
+            Object.keys(signals).forEach(signalId => {
+                const signal = signals[signalId];
+                if (signal.target === currentUser.id) {
+                    handleSignal(signal);
+                    // Remove processed signal
+                    remove(ref(db, `rooms/${roomId}/signals/${signalId}`));
                 }
-            }, 2000);
+            });
         });
         
-        myPeer.on('close', () => {
-            console.log('🔥 Peer connection closed');
-        });
-        
-        console.log('🔥 Peer instance created successfully');
-        return myPeer;
+        console.log('🔥 WebRTC voice communication initialized');
         
     } catch (error) {
-        console.error('🔥 Error initializing peer:', error);
-        console.error('🔥 Peer initialization error details:', error.message);
-        return null;
+        console.error('🔥 Error initializing voice communication:', error);
     }
 }
 
-function initVoiceCommunication(roomId) {
-    console.log('🔥 Initializing voice communication for room:', roomId);
+// Handle incoming signaling messages
+async function handleSignal(signal) {
+    console.log('🔥 Received signal:', signal.type, 'from:', signal.sender);
     
-    // Initialize PeerJS
-    myPeer = initializePeer();
-    if (!myPeer) {
-        console.log('🔥 Voice chat disabled - PeerJS not available');
-        return;
+    if (signal.type === 'offer') {
+        await handleOffer(signal);
+    } else if (signal.type === 'answer') {
+        await handleAnswer(signal);
+    } else if (signal.type === 'ice-candidate') {
+        await handleIceCandidate(signal);
+    }
+}
+
+// Handle WebRTC offer
+async function handleOffer(signal) {
+    const peerConnection = new RTCPeerConnection(iceServers);
+    peerConnections[signal.sender] = peerConnection;
+    
+    // Add local stream
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+    
+    // Set remote description
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    
+    // Create answer
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    
+    // Send answer
+    sendSignal(signal.sender, 'answer', answer);
+    
+    // Handle ICE candidates
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            sendSignal(signal.sender, 'ice-candidate', event.candidate);
+        }
+    };
+    
+    // Handle remote stream
+    peerConnection.ontrack = (event) => {
+        console.log('🔥 Received remote stream from:', signal.sender);
+        playRemoteAudio(event.streams[0], signal.sender);
+    };
+}
+
+// Handle WebRTC answer
+async function handleAnswer(signal) {
+    const peerConnection = peerConnections[signal.sender];
+    if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+    }
+}
+
+// Handle ICE candidate
+async function handleIceCandidate(signal) {
+    const peerConnection = peerConnections[signal.sender];
+    if (peerConnection) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+    }
+}
+
+// Send signaling message through Firebase
+async function sendSignal(targetUserId, type, data) {
+    if (!currentDiscordRoomId) return;
+    
+    const signalsRef = ref(db, `rooms/${currentDiscordRoomId}/signals`);
+    const newSignalRef = push(signalsRef);
+    
+    await set(newSignalRef, {
+        sender: currentUser.id,
+        target: targetUserId,
+        type: type,
+        sdp: type === 'offer' || type === 'answer' ? data : null,
+        candidate: type === 'ice-candidate' ? data : null,
+        timestamp: Date.now()
+    });
+    
+    console.log('🔥 Sent signal:', type, 'to:', targetUserId);
+}
+
+// Start call to user
+async function startCall(userId) {
+    console.log('🔥 Starting call to:', userId);
+    
+    const peerConnection = new RTCPeerConnection(iceServers);
+    peerConnections[userId] = peerConnection;
+    
+    // Add local stream
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+    
+    // Create offer
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    
+    // Send offer
+    sendSignal(userId, 'offer', offer);
+    
+    // Handle ICE candidates
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            sendSignal(userId, 'ice-candidate', event.candidate);
+        }
+    };
+    
+    // Handle remote stream
+    peerConnection.ontrack = (event) => {
+        console.log('🔥 Received remote stream from:', userId);
+        playRemoteAudio(event.streams[0], userId);
+    };
+}
+
+// Play remote audio
+function playRemoteAudio(stream, userId) {
+    // Remove existing audio for this user
+    const existingAudio = document.getElementById(`remote-audio-${userId}`);
+    if (existingAudio) {
+        existingAudio.remove();
     }
     
-    // Listen for new users joining voice
-    const playersRef = ref(db, `rooms/${roomId}/players`);
-    onValue(playersRef, (snapshot) => {
-        // КРИТИЧЕСКИ ВАЖНО: Не звоним никому, пока у нас нет своего потока (микрофон выключен)
-        if (!isVoiceActive || !myStream) {
-            return;
-        }
+    const audioElement = document.createElement('audio');
+    audioElement.id = `remote-audio-${userId}`;
+    audioElement.srcObject = stream;
+    audioElement.autoplay = true;
+    audioElement.style.display = 'none';
+    document.body.appendChild(audioElement);
+    
+    console.log('🔥 Playing audio from:', userId);
+}
 
+// Connect to all voice users in room
+async function connectToVoiceUsers() {
+    if (!currentDiscordRoomId || !localStream) return;
+    
+    const playersRef = ref(db, `rooms/${currentDiscordRoomId}/players`);
+    onValue(playersRef, (snapshot) => {
         const players = snapshot.val() || {};
         Object.keys(players).forEach(userId => {
-            if (userId !== currentUser.id && players[userId].isVoice && !peers[userId]) {
-                const peerId = players[userId].peerId;
-                console.log('🔥 New voice user detected:', userId, 'Peer ID:', peerId);
-                
-                if (peerId) {
-                    console.log('🔥 Connecting to user via peer ID:', peerId);
-                    connectToNewUserByPeerId(peerId, myStream);
-                } else {
-                    console.warn('🔥 User has voice enabled but no peer ID:', userId);
-                }
+            if (userId !== currentUser.id && players[userId].isVoice && !peerConnections[userId]) {
+                console.log('🔥 Connecting to voice user:', userId);
+                startCall(userId);
             }
         });
     });
 }
 
-function connectToNewUserByPeerId(peerId, stream) {
-    console.log('🔥 connectToNewUserByPeerId called with:', { peerId, stream: !!stream, myPeer: !!myPeer });
-    
-    if (!myPeer) {
-        console.error('🔥 Cannot connect - myPeer is null');
-        return;
-    }
-    
-    if (!stream) {
-        console.error('🔥 Cannot connect - stream is null');
-        return;
-    }
-    
-    if (!myPeer.open) {
-        console.error('🔥 Cannot connect - peer is not open yet');
-        return;
-    }
-    
-    console.log('🔥 Calling user by peer ID:', peerId);
-    const call = myPeer.call(peerId, stream);
-    
-    if (!call) {
-        console.error('🔥 Failed to create call to peer ID:', peerId);
-        return;
-    }
-    
-    call.on('stream', (userAudioStream) => {
-        console.log('🔥 Received stream from peer ID:', peerId);
-        addAudioStream(peerId, userAudioStream);
-    });
-    
-    call.on('close', () => {
-        console.log('🔥 Call with peer ID closed:', peerId);
-        removeAudioStream(peerId);
-    });
-    
-    call.on('error', (error) => {
-        console.error('🔥 Call error with peer ID:', peerId, error);
-        console.error('🔥 Call error type:', error.type);
-        console.error('🔥 Call error details:', error.message);
-    });
-    
-    peers[peerId] = call;
-    console.log('🔥 Call established with peer ID:', peerId);
-}
-
-function connectToNewUser(userId, stream) {
-    console.log('🔥 connectToNewUser called with:', { userId, stream: !!stream, myPeer: !!myPeer });
-    console.log('🔥 Peer status:', myPeer ? { id: myPeer.id, open: myPeer.open, disconnected: myPeer.disconnected, destroyed: myPeer.destroyed } : 'null');
-    
-    if (!myPeer) {
-        console.error('🔥 Cannot connect - myPeer is null');
-        console.log('🔥 Attempting to initialize peer...');
-        myPeer = initializePeer();
-        if (!myPeer) {
-            console.error('🔥 Failed to initialize peer');
-            return;
-        }
-        
-        // Wait a bit for peer to initialize
-        setTimeout(() => {
-            if (myPeer && myPeer.open) {
-                console.log('🔥 Peer initialized, retrying connection to:', userId);
-                connectToNewUser(userId, stream);
-            }
-        }, 1000);
-        return;
-    }
-    
-    if (!stream) {
-        console.error('🔥 Cannot connect - stream is null');
-        return;
-    }
-    
-    if (!myPeer.open) {
-        console.error('🔥 Cannot connect - peer is not open yet');
-        console.log('🔥 Waiting for peer to open...');
-        // Wait for peer to open and retry
-        myPeer.on('open', () => {
-            console.log('🔥 Peer opened, connecting to user:', userId);
-            connectToNewUser(userId, stream);
-        });
-        return;
-    }
-    
-    console.log('🔥 Calling user:', userId);
-    const call = myPeer.call(userId, stream);
-    
-    if (!call) {
-        console.error('🔥 Failed to create call to user:', userId);
-        return;
-    }
-    
-    call.on('stream', (userAudioStream) => {
-        console.log('🔥 Received stream from user:', userId);
-        addAudioStream(userId, userAudioStream);
-    });
-    
-    call.on('close', () => {
-        console.log('🔥 Call with user closed:', userId);
-        removeAudioStream(userId);
-    });
-    
-    call.on('error', (error) => {
-        console.error('🔥 Call error with user:', userId, error);
-        console.error('🔥 Call error type:', error.type);
-        console.error('🔥 Call error details:', error.message);
-    });
-    
-    peers[userId] = call;
-    console.log('🔥 Call established with user:', userId);
-}
-
-function addAudioStream(userId, stream) {
-    // Remove existing audio element if any
-    removeAudioStream(userId);
-    
-    const audio = document.createElement('audio');
-    audio.id = `audio-${userId}`;
-    audio.autoplay = true;
-    audio.srcObject = stream;
-    
-    // Set volume from localStorage or default
-    audio.volume = parseFloat(localStorage.getItem('voice_volume') || '0.5');
-    
-    // Add to hidden container
-    let container = document.getElementById('remote-audio-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'remote-audio-container';
-        container.style.display = 'none';
-        document.body.appendChild(container);
-    }
-    
-    container.appendChild(audio);
-    audioElements[userId] = audio;
-    
-    console.log('🔥 Audio stream added for user:', userId);
-}
-
-function removeAudioStream(userId) {
-    const audio = document.getElementById(`audio-${userId}`);
-    if (audio) {
-        audio.remove();
-    }
-    delete audioElements[userId];
-    
-    // Close peer connection
-    if (peers[userId]) {
-        peers[userId].close();
-        delete peers[userId];
-    }
-    
-    console.log('🔥 Audio stream removed for user:', userId);
-}
-
+// Cleanup voice
 function cleanupVoice() {
-    console.log('🔥 Cleaning up voice communication');
-    
     // Stop local stream
-    if (myStream) {
-        myStream.getTracks().forEach(track => track.stop());
-        myStream = null;
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
     }
     
     // Close all peer connections
-    Object.values(peers).forEach(peer => peer.close());
-    Object.keys(peers).forEach(userId => removeAudioStream(userId));
+    Object.keys(peerConnections).forEach(userId => {
+        peerConnections[userId].close();
+        delete peerConnections[userId];
+    });
     
-    // Close peer
-    if (myPeer) {
-        myPeer.destroy();
-        myPeer = null;
-    }
+    // Remove all audio elements
+    document.querySelectorAll('[id^="remote-audio-"]').forEach(el => el.remove());
     
-    isVoiceActive = false;
+    console.log('🔥 Voice cleaned up');
 }
 
-export const toggleVoice = async () => {
-    if (!currentDiscordRoomId) return;
-    
-    const btn = document.getElementById('voice-toggle-btn');
-    if (!btn) {
-        console.error('🔥 Voice toggle button not found');
-        return;
-    }
+// Modified toggleVoice function to use WebRTC
+window.toggleVoice = async () => {
+    const voiceBtn = document.getElementById('voice-btn');
+    const isVoiceActive = voiceBtn?.classList.contains('active');
     
     if (!isVoiceActive) {
+        // Activate voice
         try {
-            console.log('🔥 Requesting microphone access...');
-            
-            // Запрашиваем микрофон
-            myStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false
-            });
-            
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             console.log('🔥 Microphone access granted');
             
-            // Инициализируем PeerJS если еще не инициализирован
-            if (!myPeer) {
-                myPeer = initializePeer();
-                if (!myPeer) {
-                    throw new Error('Failed to initialize PeerJS');
-                }
-                
-                // Ждем подключения к PeerJS серверу
-                await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('PeerJS connection timeout')), 10000);
-                    myPeer.on('open', () => {
-                        clearTimeout(timeout);
-                        resolve();
-                    });
-                });
+            if (voiceBtn) voiceBtn.classList.add('active');
+            
+            // Initialize WebRTC and connect to users
+            if (currentDiscordRoomId) {
+                await initVoiceCommunication(currentDiscordRoomId);
+                await connectToVoiceUsers();
             }
             
-            isVoiceActive = true;
-            btn.classList.add('active');
-            
-            // Обновляем статус в Firebase
-            const userRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
-            await update(userRef, {
-                isVoice: true,
-                name: currentUser.name,
-                peerId: currentUser.id
-            });
-            
-            console.log('🔥 Voice activated, connecting to other users...');
-            
-            // Подключаемся к другим активным пользователям
-            const playersRef = ref(db, `rooms/${currentDiscordRoomId}/players`);
-            const snapshot = await get(playersRef);
-            const players = snapshot.val() || {};
-            
-            Object.keys(players).forEach(userId => {
-                if (userId !== currentUser.id && players[userId].isVoice) {
-                    console.log('🔥 Connecting to user:', userId);
-                    connectToNewUser(userId, myStream);
-                }
-            });
-            
-            console.log('🔥 Voice chat fully activated');
+            // Update Firebase
+            const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
+            await update(playerRef, { isVoice: true });
             
         } catch (error) {
-            console.error('🔥 Failed to activate voice:', error);
-            alert('Не удалось получить доступ к микрофону или подключиться к голосовому чату: ' + error.message);
-            
-            // Очистка при ошибке
-            if (myStream) {
-                myStream.getTracks().forEach(track => track.stop());
-                myStream = null;
-            }
+            console.error('🔥 Microphone access denied:', error);
+            alert('Не удалось получить доступ к микрофону');
         }
     } else {
-        console.log('🔥 Deactivating voice...');
+        // Deactivate voice
+        cleanupVoice();
         
-        // Выключаем микрофон
-        if (myStream) {
-            myStream.getTracks().forEach(track => track.stop());
-            myStream = null;
-        }
+        if (voiceBtn) voiceBtn.classList.remove('active');
         
-        isVoiceActive = false;
-        btn.classList.remove('active');
-        
-        // Обновляем статус в Firebase
-        const userRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
-        await update(userRef, {
-            isVoice: false,
-            name: currentUser.name
-        });
-        
-        // Закрываем все соединения
-        Object.values(peers).forEach(peer => peer.close());
-        Object.keys(peers).forEach(userId => removeAudioStream(userId));
-        
-        console.log('🔥 Voice deactivated');
+        // Update Firebase
+        const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
+        await update(playerRef, { isVoice: false });
     }
-    
-    const playerRef = ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`);
-    
-    // Update with voice status and peer ID
-    const updateData = { isVoice: isVoiceActive };
-    if (isVoiceActive && myPeer && myPeer.id) {
-        updateData.peerId = myPeer.id;
-        console.log('🔥 Saving peer ID to Firebase:', myPeer.id);
-    }
-    
-    await update(playerRef, updateData);
 };
 
-// Make toggleVoice globally available after definition
-window.toggleVoice = toggleVoice;
+
+
+
+
+
+
 
 
 export const leaveDiscordRoom = () => {
     if (currentDiscordRoomId) {
         remove(ref(db, `rooms/${currentDiscordRoomId}/players/${currentUser.id}`));
     }
-    cleanupVoice();
     currentDiscordRoomId = null;
-    isVoiceActive = false;
     roomActiveViewEl.classList.add('hidden');
     roomWelcomeViewEl.classList.remove('hidden');
 
