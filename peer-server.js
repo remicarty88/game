@@ -1,40 +1,39 @@
-const { PeerServer } = require('peerjs');
 const express = require('express');
-const http = require('http');
 const path = require('path');
 
-const app = express();
-const server = http.createServer(app);
+console.log('🔥 Starting server...');
 
-// Health check endpoint (before PeerServer)
+const app = express();
+
+// Health check endpoint - самый простой
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    console.log('🔥 Health check accessed');
+    res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+    console.log('🔥 Root accessed');
+    res.status(200).send('88 Games Server is running');
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
 
-// PeerJS server configuration
-const peerServer = PeerServer({ 
-    port: process.env.PORT || 8080,
-    path: '/peerjs',
-    allow_discovery: true,
-    debug: true
-});
-
-// PeerJS events
-peerServer.on('connection', (id) => {
-    console.log('🔥 Peer connected:', id);
-});
-
-peerServer.on('disconnect', (id) => {
-    console.log('🔥 Peer disconnected:', id);
+// 404 handler
+app.use((req, res) => {
+    console.log('🔥 404 for:', req.path);
+    res.status(404).send('Not found');
 });
 
 // Start server
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🔥 PeerJS server running on port ${PORT}`);
-    console.log(`🔥 Health check: http://0.0.0.0:${PORT}/health`);
-    console.log(`🔥 PeerJS path: /peerjs`);
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+    console.log('🔥 Server successfully started!');
+    console.log(`🔥 Host: ${HOST}`);
+    console.log(`🔥 Port: ${PORT}`);
+    console.log(`🔥 Health check: http://${HOST}:${PORT}/health`);
+    console.log(`🔥 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
